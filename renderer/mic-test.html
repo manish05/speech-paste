@@ -298,6 +298,11 @@
         <button class="btn btn-copy" id="copyBtn" disabled>Copy to Clipboard</button>
         <button class="btn btn-status" id="statusBtn">Check Status</button>
         <button class="btn btn-status" id="simulateBtn">Simulate Transcription</button>
+        <button class="btn btn-status" id="systemInfoBtn">System Info</button>
+        <button class="btn btn-status" id="audioCommandsBtn">Check Audio Commands</button>
+        <button class="btn btn-status" id="exportLogsBtn">Export Logs</button>
+        <button class="btn btn-status" id="clearLogsBtn">Clear Logs</button>
+        <button class="btn btn-status" id="testApiBtn">Test API</button>
       </div>
       
       <div class="debug-section">
@@ -331,191 +336,249 @@
       const copyBtn = document.getElementById('copyBtn');
       const statusBtn = document.getElementById('statusBtn');
       const simulateBtn = document.getElementById('simulateBtn');
+      const systemInfoBtn = document.getElementById('systemInfoBtn');
+      const audioCommandsBtn = document.getElementById('audioCommandsBtn');
+      const exportLogsBtn = document.getElementById('exportLogsBtn');
+      const clearLogsBtn = document.getElementById('clearLogsBtn');
       const recordingIndicator = document.getElementById('recordingIndicator');
       const audioBars = document.getElementById('audioBars');
       const body = document.body;
       
       // Recording state
-      let mediaRecorder = null;
-      let stream = null;
-      let chunks = [];
-      let audioContext = null;
-      let analyser = null;
-      let dataArray = null;
-      let animationId = null;
       let isRecording = false;
       let base64Data = null;
-      let mimeType = null;
+      let mimeType = 'audio/wav';
       let transcribedText = null;
+      let audioData = null;
+      let animationId = null;
       
       // Initialize
       log('Debug microphone test initialized', 'info');
       
-      // Check if recorderAPI is available
-      log('Checking for recorderAPI...', 'info');
-      log(`window.recorderAPI: ${typeof window.recorderAPI}`, 'info');
+      // Log initial system state
+      log('=== INITIAL SYSTEM STATE ===', 'info');
+      log(`User Agent: ${navigator.userAgent}`, 'info');
+      log(`Platform: ${navigator.platform}`, 'info');
+      log(`MediaDevices API: ${!!navigator.mediaDevices}`, 'info');
+      log(`MediaRecorder API: ${typeof MediaRecorder !== 'undefined'}`, 'info');
+      log(`AudioContext API: ${typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined'}`, 'info');
+      log(`Permissions API: ${!!navigator.permissions}`, 'info');
+      log(`Clipboard API: ${!!navigator.clipboard}`, 'info');
+      log(`Window Size: ${window.innerWidth}x${window.innerHeight}`, 'info');
+      log(`Location: ${window.location.href}`, 'info');
       
-      if (window.recorderAPI) {
-        log('recorderAPI is available', 'info');
-        log(`Available methods: ${Object.keys(window.recorderAPI).join(', ')}`, 'info');
+      // Test if preload script loaded
+      setTimeout(() => {
+        log('=== PRELOAD SCRIPT TEST ===', 'info');
+        log(`window.audioRecording available: ${typeof window.audioRecording}`, 'info');
+        if (window.audioRecording) {
+          log(`audioRecording methods: ${Object.keys(window.audioRecording).join(', ')}`, 'info');
+        }
+      }, 1000);
+      
+      // Collect system information
+      async function collectSystemInfo() {
+        const info = {
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          language: navigator.language,
+          cookieEnabled: navigator.cookieEnabled,
+          onLine: navigator.onLine,
+          mediaDevices: {
+            available: !!navigator.mediaDevices,
+            getUserMedia: !!navigator.mediaDevices?.getUserMedia,
+            enumerateDevices: !!navigator.mediaDevices?.enumerateDevices
+          },
+          mediaRecorder: {
+            available: typeof MediaRecorder !== 'undefined',
+            supportedTypes: []
+          },
+          audioContext: {
+            available: typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined'
+          },
+          permissions: {
+            available: !!navigator.permissions,
+            query: !!navigator.permissions?.query
+          },
+          clipboard: {
+            available: !!navigator.clipboard,
+            writeText: !!navigator.clipboard?.writeText
+          },
+          window: {
+            innerWidth: window.innerWidth,
+            innerHeight: window.innerHeight,
+            devicePixelRatio: window.devicePixelRatio
+          },
+          location: {
+            href: window.location.href,
+            protocol: window.location.protocol,
+            hostname: window.location.hostname,
+            pathname: window.location.pathname
+          }
+        };
+
+        // Check MediaRecorder supported types
+        if (info.mediaRecorder.available) {
+          const testTypes = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/mp4',
+            'audio/ogg;codecs=opus',
+            'audio/wav'
+          ];
+          info.mediaRecorder.supportedTypes = testTypes.filter(type => MediaRecorder.isTypeSupported(type));
+        }
+
+        return info;
+      }
+
+      // Check if audioRecording API is available
+      log('Checking for audioRecording API...', 'info');
+      log(`window.audioRecording: ${typeof window.audioRecording}`, 'info');
+      
+      if (window.audioRecording) {
+        log('audioRecording API is available', 'info');
+        log(`Available methods: ${Object.keys(window.audioRecording).join(', ')}`, 'info');
         
-        // Test the preload script
-        if (window.recorderAPI.test) {
-          const testResult = window.recorderAPI.test();
-          log(`Preload test result: ${testResult}`, 'info');
+        // Test the API with a simple call
+        try {
+          const testResult = await window.audioRecording.getAvailableCommands();
+          log(`Test call result: ${JSON.stringify(testResult)}`, 'info');
+          
+          if (testResult.success) {
+            log('Available audio commands:', 'info');
+            Object.entries(testResult.commands).forEach(([cmd, available]) => {
+              log(`${cmd}: ${available ? '✓' : '✗'}`, 'info');
+            });
+          } else {
+            log(`Failed to get available commands: ${testResult.error}`, 'error');
+          }
+        } catch (error) {
+          log(`Error testing audioRecording API: ${error.message}`, 'error');
+          log(`Error stack: ${error.stack}`, 'error');
         }
       } else {
-        log('recorderAPI is NOT available - preload script may not have loaded', 'error');
-        log('Creating fallback recorderAPI...', 'warn');
+        log('audioRecording API is NOT available - preload script may not have loaded', 'error');
+        log('Available window objects:', 'info');
+        Object.keys(window).forEach(key => {
+          if (key.includes('audio') || key.includes('recording') || key.includes('recorder')) {
+            log(`Found: window.${key}`, 'info');
+          }
+        });
         
         // Create a fallback API that logs errors
-        window.recorderAPI = {
-          onStart: (callback) => log('Fallback: onStart called', 'warn'),
-          onStop: (callback) => log('Fallback: onStop called', 'warn'),
-          onProcessing: (callback) => log('Fallback: onProcessing called', 'warn'),
-          onTranscribed: (callback) => log('Fallback: onTranscribed called', 'warn'),
-          onError: (callback) => log('Fallback: onError called', 'warn'),
-          sendAudio: (base64, mimeType) => {
-            log('Fallback: sendAudio called - preload script not working', 'error');
-            log(`Would send: ${base64.length} chars, mimeType: ${mimeType}`, 'info');
+        window.audioRecording = {
+          startRecording: async (options) => {
+            log('Fallback: startRecording called', 'warn');
+            return { success: false, error: 'Preload script not working' };
           },
-          notifyStopped: () => log('Fallback: notifyStopped called', 'warn')
+          stopRecording: async () => {
+            log('Fallback: stopRecording called', 'warn');
+            return { success: false, error: 'Preload script not working' };
+          },
+          getRecordingState: async () => {
+            log('Fallback: getRecordingState called', 'warn');
+            return { success: false, error: 'Preload script not working' };
+          },
+          getAvailableCommands: async () => {
+            log('Fallback: getAvailableCommands called', 'warn');
+            return { success: false, error: 'Preload script not working' };
+          }
         };
       }
       
       async function startRecording() {
         try {
-          log('Starting recording...', 'info');
-          statusEl.textContent = 'Requesting microphone access...';
+          log('Starting native audio recording...', 'info');
+          statusEl.textContent = 'Starting native recording...';
           
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          log('Microphone access granted', 'info');
+          // Check if native audio recording API is available
+          if (!window.audioRecording) {
+            log('Native audio recording API not available', 'error');
+            statusEl.textContent = 'Native audio recording API not available';
+            return;
+          }
           
-          mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-            ? 'audio/webm;codecs=opus'
-            : 'audio/webm';
-          
-          mediaRecorder = new MediaRecorder(stream, { mimeType });
-          chunks = [];
+          // Reset state
           base64Data = null;
           transcribedText = null;
+          audioData = null;
           
-          // Set up audio visualization
-          audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          const source = audioContext.createMediaStreamSource(stream);
-          analyser = audioContext.createAnalyser();
-          analyser.fftSize = 256;
-          source.connect(analyser);
-          dataArray = new Uint8Array(analyser.frequencyBinCount);
+          // Start native recording
+          const result = await window.audioRecording.startRecording({
+            sampleRate: 44100,
+            channels: 1,
+            format: 'wav'
+          });
           
-          mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) {
-              chunks.push(e.data);
-              log(`Audio chunk received: ${e.data.size} bytes`, 'info');
-            }
-          };
-          
-          mediaRecorder.onstart = () => {
-            log('MediaRecorder started', 'info');
+          if (result.success) {
+            log('Native audio recording started successfully', 'info');
             isRecording = true;
             updateUI();
             startAudioVisualization();
-          };
-          
-          mediaRecorder.onstop = async () => {
-            log('MediaRecorder stopped', 'info');
-            stopAudioVisualization();
-            
-            try {
-              if (chunks.length > 0) {
-                const blob = new Blob(chunks, { type: mimeType });
-                log(`Audio blob created: ${blob.size} bytes`, 'info');
-                
-                // Just play the recording instead of sending for transcription
-                const url = URL.createObjectURL(blob);
-                const audio = new Audio(url);
-                
-                audio.onplay = () => {
-                  log('Playing recording...', 'info');
-                  statusEl.textContent = 'Playing recording...';
-                };
-                audio.onended = () => {
-                  log('Playback finished', 'info');
-                  statusEl.textContent = 'Recording playback finished';
-                  URL.revokeObjectURL(url);
-                };
-                audio.onerror = (e) => {
-                  log(`Playback error: ${e.message}`, 'error');
-                  statusEl.textContent = 'Error playing recording';
-                };
-                
-                audio.play();
-                
-                // Enable convert and send buttons after recording
-                updateUI();
-              } else {
-                log('No audio chunks available', 'warn');
-                statusEl.textContent = 'No audio recorded';
-              }
-              // Safely call notifyStopped if API is available
-              if (window.recorderAPI && window.recorderAPI.notifyStopped) {
-                window.recorderAPI.notifyStopped();
-              }
-            } catch (error) {
-              log(`Error processing audio: ${error.message}`, 'error');
-              // Safely call notifyStopped if API is available
-              if (window.recorderAPI && window.recorderAPI.notifyStopped) {
-                window.recorderAPI.notifyStopped();
-              }
-              statusEl.textContent = 'Error processing audio';
-            }
-          };
-          
-          mediaRecorder.onerror = (event) => {
-            log(`MediaRecorder error: ${event.error}`, 'error');
-          };
-          
-          mediaRecorder.start();
-          statusEl.textContent = 'Recording...';
+            statusEl.textContent = 'Recording... Please speak...';
+          } else {
+            log(`Failed to start native recording: ${result.error}`, 'error');
+            statusEl.textContent = `Failed to start recording: ${result.error}`;
+          }
           
         } catch (err) {
           log(`Failed to start recording: ${err.message}`, 'error');
-          statusEl.textContent = 'Microphone access denied';
+          statusEl.textContent = 'Recording failed';
         }
       }
       
-      function stopRecording() {
-        log('Stopping recording...', 'info');
+      async function stopRecording() {
+        log('Stopping native audio recording...', 'info');
         
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-          mediaRecorder.stop();
+        if (!window.audioRecording) {
+          log('Native audio recording API not available', 'error');
+          statusEl.textContent = 'Native audio recording API not available';
+          return;
         }
         
-        if (stream) {
-          stream.getTracks().forEach(track => {
-            track.stop();
-            log(`Audio track stopped: ${track.kind}`, 'info');
-          });
-          stream = null;
+        try {
+          const result = await window.audioRecording.stopRecording();
+          
+          if (result.success) {
+            log('Native audio recording stopped successfully', 'info');
+            audioData = result.result;
+            base64Data = result.result.formats.base64;
+            log(`Audio data received: ${result.result.fileSize} bytes`, 'info');
+            statusEl.textContent = 'Recording stopped - audio data available';
+          } else {
+            log(`Failed to stop native recording: ${result.error}`, 'error');
+            statusEl.textContent = `Failed to stop recording: ${result.error}`;
+          }
+        } catch (error) {
+          log(`Error stopping recording: ${error.message}`, 'error');
+          statusEl.textContent = 'Error stopping recording';
         }
         
         isRecording = false;
         updateUI();
         stopAudioVisualization();
-        statusEl.textContent = 'Recording stopped';
       }
       
       function playRecording() {
-        log(`Play recording called - chunks length: ${chunks.length}`, 'info');
+        log(`Play recording called - audioData: ${audioData ? 'available' : 'none'}`, 'info');
         
-        if (chunks.length === 0) {
-          log('No audio to play', 'warn');
-          statusEl.textContent = 'No audio to play';
+        if (!audioData || !audioData.formats || !audioData.formats.base64) {
+          log('No audio data available to play', 'warn');
+          statusEl.textContent = 'No audio data available to play';
           return;
         }
         
         try {
-          const blob = new Blob(chunks, { type: 'audio/webm' });
+          // Convert base64 to blob
+          const binaryString = atob(audioData.formats.base64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          const blob = new Blob([bytes], { type: 'audio/wav' });
           log(`Created blob for playback: ${blob.size} bytes`, 'info');
           const url = URL.createObjectURL(blob);
           const audio = new Audio(url);
@@ -547,43 +610,21 @@
       async function convertToBase64() {
         log('Converting audio to base64...', 'info');
         
-        if (chunks.length === 0) {
-          log('No audio to convert', 'warn');
-          statusEl.textContent = 'No audio to convert';
+        if (!audioData || !audioData.formats || !audioData.formats.base64) {
+          log('No audio data available to convert', 'warn');
+          statusEl.textContent = 'No audio data available to convert';
           return;
         }
         
         try {
           statusEl.textContent = 'Converting to base64...';
-          const blob = new Blob(chunks, { type: mimeType });
-          log(`Converting blob: ${blob.size} bytes`, 'info');
+          base64Data = audioData.formats.base64;
           
-          // Use FileReader for more efficient base64 conversion
-          const reader = new FileReader();
+          log(`Base64 conversion successful: ${base64Data.length} characters`, 'info');
+          statusEl.textContent = 'Converted to base64 successfully';
           
-          reader.onload = () => {
-            try {
-              // Remove the data URL prefix (e.g., "data:audio/webm;base64,")
-              const dataUrl = reader.result;
-              base64Data = dataUrl.split(',')[1];
-              
-              log(`Base64 conversion successful: ${base64Data.length} characters`, 'info');
-              statusEl.textContent = 'Converted to base64 successfully';
-              
-              // Enable send button after conversion
-              updateUI();
-            } catch (error) {
-              log(`Failed to process base64 result: ${error.message}`, 'error');
-              statusEl.textContent = 'Failed to process base64 result';
-            }
-          };
-          
-          reader.onerror = () => {
-            log(`FileReader error: ${reader.error}`, 'error');
-            statusEl.textContent = 'FileReader error during conversion';
-          };
-          
-          reader.readAsDataURL(blob);
+          // Enable send button after conversion
+          updateUI();
         } catch (error) {
           log(`Failed to convert to base64: ${error.message}`, 'error');
           statusEl.textContent = 'Failed to convert to base64';
@@ -599,10 +640,10 @@
           return;
         }
         
-        // Check if recorderAPI is available
+        // Check if recorderAPI is available for sending to Gemini
         if (!window.recorderAPI) {
-          log('recorderAPI is not available', 'error');
-          statusEl.textContent = 'recorderAPI not available';
+          log('recorderAPI is not available for Gemini transcription', 'error');
+          statusEl.textContent = 'recorderAPI not available for transcription';
           return;
         }
         
@@ -659,7 +700,7 @@
         log(`Current status: ${statusEl.textContent}`, 'info');
         log(`Transcribed text: ${transcribedText || 'None'}`, 'info');
         log(`Base64 data: ${base64Data ? base64Data.length + ' chars' : 'None'}`, 'info');
-        log(`Chunks: ${chunks.length}`, 'info');
+        log(`Audio data: ${audioData ? 'Available' : 'None'}`, 'info');
         log(`Is recording: ${isRecording}`, 'info');
         
         if (statusEl.textContent === 'Sending to Gemini...') {
@@ -668,6 +709,169 @@
         }
       }
       
+      async function showSystemInfo() {
+        log('Collecting system information...', 'info');
+        try {
+          const systemInfo = await collectSystemInfo();
+          log('=== SYSTEM INFORMATION ===', 'info');
+          log(`Timestamp: ${systemInfo.timestamp}`, 'info');
+          log(`User Agent: ${systemInfo.userAgent}`, 'info');
+          log(`Platform: ${systemInfo.platform}`, 'info');
+          log(`Language: ${systemInfo.language}`, 'info');
+          log(`Online: ${systemInfo.onLine}`, 'info');
+          log(`Cookie Enabled: ${systemInfo.cookieEnabled}`, 'info');
+          
+          log('=== MEDIA DEVICES ===', 'info');
+          log(`MediaDevices API: ${systemInfo.mediaDevices.available}`, 'info');
+          log(`getUserMedia: ${systemInfo.mediaDevices.getUserMedia}`, 'info');
+          log(`enumerateDevices: ${systemInfo.mediaDevices.enumerateDevices}`, 'info');
+          
+          log('=== MEDIA RECORDER ===', 'info');
+          log(`MediaRecorder API: ${systemInfo.mediaRecorder.available}`, 'info');
+          log(`Supported Types: ${systemInfo.mediaRecorder.supportedTypes.join(', ')}`, 'info');
+          
+          log('=== AUDIO CONTEXT ===', 'info');
+          log(`AudioContext API: ${systemInfo.audioContext.available}`, 'info');
+          
+          log('=== PERMISSIONS ===', 'info');
+          log(`Permissions API: ${systemInfo.permissions.available}`, 'info');
+          log(`Query Method: ${systemInfo.permissions.query}`, 'info');
+          
+          log('=== CLIPBOARD ===', 'info');
+          log(`Clipboard API: ${systemInfo.clipboard.available}`, 'info');
+          log(`WriteText Method: ${systemInfo.clipboard.writeText}`, 'info');
+          
+          log('=== WINDOW ===', 'info');
+          log(`Inner Size: ${systemInfo.window.innerWidth}x${systemInfo.window.innerHeight}`, 'info');
+          log(`Device Pixel Ratio: ${systemInfo.window.devicePixelRatio}`, 'info');
+          
+          log('=== LOCATION ===', 'info');
+          log(`Protocol: ${systemInfo.location.protocol}`, 'info');
+          log(`Hostname: ${systemInfo.location.hostname}`, 'info');
+          log(`Pathname: ${systemInfo.location.pathname}`, 'info');
+          
+          // Try to enumerate audio devices
+          if (systemInfo.mediaDevices.enumerateDevices) {
+            try {
+              const devices = await navigator.mediaDevices.enumerateDevices();
+              const audioDevices = devices.filter(device => device.kind === 'audioinput');
+              log(`=== AUDIO DEVICES (${audioDevices.length}) ===`, 'info');
+              audioDevices.forEach((device, index) => {
+                log(`Device ${index + 1}: ${device.label || 'Unknown'} (${device.deviceId})`, 'info');
+              });
+            } catch (error) {
+              log(`Failed to enumerate devices: ${error.message}`, 'error');
+            }
+          }
+          
+          // Check microphone permission status
+          if (systemInfo.permissions.query) {
+            try {
+              const permission = await navigator.permissions.query({ name: 'microphone' });
+              log(`=== MICROPHONE PERMISSION ===`, 'info');
+              log(`Status: ${permission.state}`, 'info');
+              log(`Granted: ${permission.state === 'granted'}`, 'info');
+            } catch (error) {
+              log(`Failed to check microphone permission: ${error.message}`, 'error');
+            }
+          }
+          
+          statusEl.textContent = 'System information collected - check logs';
+        } catch (error) {
+          log(`Failed to collect system info: ${error.message}`, 'error');
+          statusEl.textContent = 'Failed to collect system info';
+        }
+      }
+
+      async function checkAudioCommands() {
+        log('Checking audio recording commands...', 'info');
+        try {
+          // Check if audioRecording API is available
+          if (window.audioRecording) {
+            log('=== AUDIO RECORDING API ===', 'info');
+            log(`Audio Recording API: Available`, 'info');
+            log(`Available methods: ${Object.keys(window.audioRecording).join(', ')}`, 'info');
+            
+            // Check available commands
+            if (window.audioRecording.getAvailableCommands) {
+              const result = await window.audioRecording.getAvailableCommands();
+              if (result.success) {
+                log('=== AVAILABLE AUDIO COMMANDS ===', 'info');
+                Object.entries(result.commands).forEach(([cmd, available]) => {
+                  log(`${cmd}: ${available ? '✓ Available' : '✗ Not Available'}`, 'info');
+                });
+              } else {
+                log(`Failed to get available commands: ${result.error}`, 'error');
+              }
+            }
+            
+            // Check recording state
+            if (window.audioRecording.getRecordingState) {
+              const result = await window.audioRecording.getRecordingState();
+              if (result.success) {
+                log('=== RECORDING STATE ===', 'info');
+                log(`Is Recording: ${result.state.isRecording}`, 'info');
+                log(`Start Time: ${result.state.startTime}`, 'info');
+                log(`Duration: ${result.state.duration}ms`, 'info');
+                log(`Audio Data: ${result.state.audioData ? 'Available' : 'None'}`, 'info');
+                log(`Options: ${JSON.stringify(result.state.options)}`, 'info');
+              } else {
+                log(`Failed to get recording state: ${result.error}`, 'error');
+              }
+            }
+          } else {
+            log('Audio Recording API: Not Available', 'warn');
+          }
+          
+          statusEl.textContent = 'Audio commands checked - check logs';
+        } catch (error) {
+          log(`Failed to check audio commands: ${error.message}`, 'error');
+          statusEl.textContent = 'Failed to check audio commands';
+        }
+      }
+
+      function exportLogs() {
+        log('Exporting logs...', 'info');
+        try {
+          const debugLogs = document.getElementById('debugLogs');
+          const logs = Array.from(debugLogs.children).map(logEl => {
+            const text = logEl.textContent || logEl.innerText;
+            return text.replace(/^\s*\[\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM)?\]\s*/, '');
+          }).join('\n');
+          
+          const systemInfo = {
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            logs: logs
+          };
+          
+          const blob = new Blob([JSON.stringify(systemInfo, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `speech-paste-debug-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          log('Logs exported successfully', 'info');
+          statusEl.textContent = 'Logs exported successfully';
+        } catch (error) {
+          log(`Failed to export logs: ${error.message}`, 'error');
+          statusEl.textContent = 'Failed to export logs';
+        }
+      }
+
+      function clearLogs() {
+        log('Clearing logs...', 'info');
+        const debugLogs = document.getElementById('debugLogs');
+        debugLogs.innerHTML = '';
+        log('Logs cleared', 'info');
+        statusEl.textContent = 'Logs cleared';
+      }
+
       function simulateTranscription() {
         log('Simulating transcription completion...', 'info');
         // Use the actual transcription result from the logs
@@ -678,7 +882,7 @@
       }
       
       function updateUI() {
-        log(`updateUI called - isRecording: ${isRecording}, chunks length: ${chunks.length}`, 'info');
+        log(`updateUI called - isRecording: ${isRecording}, audioData: ${audioData ? 'available' : 'none'}`, 'info');
         
         if (isRecording) {
           body.classList.add('recording');
@@ -691,8 +895,8 @@
           recordingIndicator.style.display = 'none';
           startBtn.disabled = false;
           stopBtn.disabled = true;
-          playBtn.disabled = chunks.length === 0;
-          convertBtn.disabled = chunks.length === 0;
+          playBtn.disabled = !audioData;
+          convertBtn.disabled = !audioData;
           sendBtn.disabled = !base64Data;
           copyBtn.disabled = !transcribedText;
         }
@@ -704,13 +908,11 @@
         const bars = audioBars.querySelectorAll('.audio-bar');
         
         function updateVisualization() {
-          if (!analyser || !isRecording) return;
+          if (!isRecording) return;
           
-          analyser.getByteFrequencyData(dataArray);
-          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-          
+          // Simulate audio visualization for native recording
           bars.forEach((bar, index) => {
-            const value = dataArray[index] || average;
+            const value = Math.random() * 255;
             const height = Math.max(8, (value / 255) * 40);
             bar.style.height = height + 'px';
           });
@@ -734,47 +936,71 @@
       
       // Event listeners
       startBtn.addEventListener('click', startRecording);
-      stopBtn.addEventListener('click', stopRecording);
+      stopBtn.addEventListener('click', () => stopRecording());
       playBtn.addEventListener('click', playRecording);
       convertBtn.addEventListener('click', convertToBase64);
       sendBtn.addEventListener('click', sendToGemini);
       copyBtn.addEventListener('click', copyToClipboard);
       statusBtn.addEventListener('click', checkStatus);
       simulateBtn.addEventListener('click', simulateTranscription);
+      systemInfoBtn.addEventListener('click', showSystemInfo);
+      audioCommandsBtn.addEventListener('click', checkAudioCommands);
+      exportLogsBtn.addEventListener('click', exportLogs);
+      clearLogsBtn.addEventListener('click', clearLogs);
       
-      // IPC handlers
-      log('Setting up IPC handlers...', 'info');
+      // Audio recording event listeners
+      log('Setting up audio recording event listeners...', 'info');
       
-      window.recorderAPI.onStart(() => {
-        log('Received start command from main process', 'info');
-        startRecording();
-      });
+      if (window.audioRecording && window.audioRecording.on) {
+        window.audioRecording.on.recordingStarted(() => {
+          log('Native audio recording started', 'info');
+          isRecording = true;
+          updateUI();
+        });
+        
+        window.audioRecording.on.recordingStopped(() => {
+          log('Native audio recording stopped', 'info');
+          isRecording = false;
+          updateUI();
+        });
+        
+        window.audioRecording.on.audioDataReady((data) => {
+          log('Audio data ready event received', 'info');
+          audioData = data;
+          updateUI();
+        });
+        
+        window.audioRecording.on.recordingError((error) => {
+          log(`Native audio recording error: ${error.message}`, 'error');
+          statusEl.textContent = `Recording error: ${error.message}`;
+        });
+      }
       
-      window.recorderAPI.onStop(() => {
-        log('Received stop command from main process', 'info');
-        stopRecording();
-      });
+      // IPC handlers for Gemini transcription (if recorderAPI is available)
+      if (window.recorderAPI) {
+        log('Setting up IPC handlers for transcription...', 'info');
+        
+        window.recorderAPI.onProcessing(() => {
+          log('Processing state received from main process', 'info');
+          statusEl.textContent = 'Processing audio...';
+        });
+        
+        window.recorderAPI.onTranscribed((event, text) => {
+          log('Received transcription result from main process', 'info');
+          transcribedText = text;
+          log(`Transcription completed: "${text}"`, 'info');
+          statusEl.textContent = 'Transcription completed!';
+          // Enable copy button after transcription
+          updateUI();
+        });
+        
+        window.recorderAPI.onError((message) => {
+          log(`Error from main process: ${message}`, 'error');
+          statusEl.textContent = `Error: ${message}`;
+        });
+      }
       
-      window.recorderAPI.onProcessing(() => {
-        log('Processing state received from main process', 'info');
-        statusEl.textContent = 'Processing audio...';
-      });
-      
-      window.recorderAPI.onTranscribed((event, text) => {
-        log('Received transcription result from main process', 'info');
-        transcribedText = text;
-        log(`Transcription completed: "${text}"`, 'info');
-        statusEl.textContent = 'Transcription completed!';
-        // Enable copy button after transcription
-        updateUI();
-      });
-      
-      window.recorderAPI.onError((message) => {
-        log(`Error from main process: ${message}`, 'error');
-        statusEl.textContent = `Error: ${message}`;
-      });
-      
-      log('IPC handlers set up successfully', 'info');
+      log('Event listeners set up successfully', 'info');
       
       // Initialize UI
       updateUI();

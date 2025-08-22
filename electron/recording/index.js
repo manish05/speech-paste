@@ -2,12 +2,13 @@ import { globalShortcut } from 'electron';
 import { GLOBAL_SHORTCUT } from '../config.js';
 import { log } from '../utils/logger.js';
 import { getApiKey } from '../services/keychain.js';
-import { createRecorderWindow, getRecorderWindow } from '../windows/recorder.js';
+import { createRecorderWindow, getRecorderWindow, showRecorderWindow } from '../windows/recorder.js';
 import { createSettingsWindow } from '../windows/settings.js';
 import { getTray } from '../tray/index.js';
 import { positionRecorderWindowNearTray } from '../utils/positioning.js';
 import { showNotification } from '../utils/logger.js';
 import { recordingStateManager } from './state-manager.js';
+import { systemPreferences } from 'electron';
 
 /**
  * Registers global shortcuts
@@ -30,7 +31,7 @@ export async function registerGlobalShortcut() {
 export async function startOrStopRecording() {
   console.log(`startOrStopRecording called - current isRecording: ${recordingStateManager.isCurrentlyRecording()}`);
   if (recordingStateManager.isCurrentlyRecording()) {
-    stopRecording();
+    await stopRecording();
   } else {
     await startRecording();
   }
@@ -43,6 +44,23 @@ export async function startRecording() {
   console.log(`startRecording called - current isRecording: ${recordingStateManager.isCurrentlyRecording()}`);
   if (recordingStateManager.isCurrentlyRecording()) return;
   
+  // Check system microphone permission on macOS
+  if (process.platform === 'darwin') {
+    const status = systemPreferences.getMediaAccessStatus('microphone');
+    log(`Microphone access status: ${status}`, 'info');
+    
+    if (status !== 'granted') {
+      const granted = await systemPreferences.askForMediaAccess('microphone');
+      log(`Microphone access granted: ${granted}`, 'info');
+      
+      if (!granted) {
+        showNotification('Microphone Access Required', 
+          'Please grant microphone access in System Preferences > Security & Privacy > Microphone');
+        return;
+      }
+    }
+  }
+  
   // Check for API key before starting recording
   const apiKey = await getApiKey();
   if (!apiKey) {
@@ -51,27 +69,36 @@ export async function startRecording() {
     return;
   }
   
-  const win = createRecorderWindow();
-  positionRecorderWindowNearTray(win, getTray());
-  win.showInactive();
+  // Get existing window or create new one
+  let win = getRecorderWindow();
+  if (!win || win.isDestroyed()) {
+    log('Creating new recorder window for first use', 'info');
+    win = createRecorderWindow();
+  }
   
-  // Wait for window to be ready before starting recording
-  setTimeout(() => {
-    // Use centralized state manager to start recording
-    recordingStateManager.startRecording();
+  // Position and show the window
+  positionRecorderWindowNearTray(win, getTray());
+  showRecorderWindow();
+  
+  // Start recording immediately without delays
+  const success = await recordingStateManager.startRecording();
+  if (success) {
     console.log('Recording started');
-  }, 200);
+  } else {
+    console.log('Failed to start recording');
+  }
 }
 
 /**
  * Stops recording process
  */
-export function stopRecording() {
+export async function stopRecording() {
   console.log(`stopRecording called - current isRecording: ${recordingStateManager.isCurrentlyRecording()}`);
   
   // Use centralized state manager to stop recording
-  recordingStateManager.stopRecording();
-  console.log('Recording stopped');
+  const result = await recordingStateManager.stopRecording();
+  console.log('Recording stopped', result ? 'with audio data' : 'without audio data');
+  return result;
 }
 
 /**

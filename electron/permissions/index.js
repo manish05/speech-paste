@@ -8,7 +8,8 @@ export async function requestPermissions() {
   try {
     if (process.platform === 'darwin') {
       // Request mic access (shows OS prompt if not yet granted)
-      await systemPreferences.askForMediaAccess('microphone');
+      const micAccess = await systemPreferences.askForMediaAccess('microphone');
+      log(`Microphone access granted: ${micAccess}`, 'info');
       
       // Prompt to grant Accessibility if not trusted (helps for global shortcut reliability)
       if (!systemPreferences.isTrustedAccessibilityClient(false)) {

@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('recorderAPI', {
   onStart: (callback) => ipcRenderer.on('recorder:start', callback),
   onStop: (callback) => ipcRenderer.on('recorder:stop', callback),
   onReset: (callback) => ipcRenderer.on('recorder:reset', callback),
+  onRelease: (callback) => ipcRenderer.on('recorder:release', callback),
   onProcessing: (callback) => ipcRenderer.on('recorder:processing', callback),
   onTranscribed: (callback) => ipcRenderer.on('recorder:transcribed', callback),
   onError: (callback) => ipcRenderer.on('recorder:error', callback),
@@ -18,6 +19,8 @@ contextBridge.exposeInMainWorld('recorderAPI', {
     console.log('Preload: copyToClipboard called with text:', text);
     return ipcRenderer.invoke('clipboard:writeText', text);
   },
+  // Request microphone access through main process
+  requestMicrophoneAccess: () => ipcRenderer.invoke('microphone:requestAccess'),
   test: () => 'Preload script is working!'
 });
 

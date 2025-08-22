@@ -20,8 +20,8 @@ export async function createMicTestWindow() {
     return micTestWindow;
   }
   
-  const preloadPath = path.join(__dirname, '..', 'preload-mic-test.js');
-  log(`Loading mic test preload script from: ${preloadPath}`, 'info');
+  const preloadPath = resolveAsset('electron/preload-audio.js');
+  log(`Loading audio recording preload script from: ${preloadPath}`, 'info');
   
   // Check if preload script exists
   const fs = await import('node:fs');

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Recording Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .section h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0056CC;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        button.recording {
+            background: #FF3B30;
+        }
+        button.recording:hover {
+            background: #D70015;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .status.info {
+            background: #E3F2FD;
+            color: #1976D2;
+            border: 1px solid #BBDEFB;
+        }
+        .status.success {
+            background: #E8F5E8;
+            color: #2E7D32;
+            border: 1px solid #C8E6C9;
+        }
+        .status.error {
+            background: #FFEBEE;
+            color: #C62828;
+            border: 1px solid #FFCDD2;
+        }
+        .status.warning {
+            background: #FFF3E0;
+            color: #EF6C00;
+            border: 1px solid #FFCC02;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        .options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .option-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        input, select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .audio-data {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .commands {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .command {
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: 500;
+        }
+        .command.available {
+            background: #E8F5E8;
+            color: #2E7D32;
+        }
+        .command.unavailable {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Native Audio Recording Test</h1>
+        
+        <div class="section">
+            <h2>Recording Controls</h2>
+            <div class="controls">
+                <button id="startBtn">Start Recording</button>
+                <button id="stopBtn" disabled>Stop Recording</button>
+                <button id="toggleBtn">Toggle Recording</button>
+            </div>
+            <div id="status" class="status info">Ready to record</div>
+        </div>
+
+        <div class="section">
+            <h2>Recording Options</h2>
+            <div class="options">
+                <div class="option-group">
+                    <label for="sampleRate">Sample Rate (Hz)</label>
+                    <select id="sampleRate">
+                        <option value="8000">8,000 Hz</option>
+                        <option value="16000">16,000 Hz</option>
+                        <option value="22050">22,050 Hz</option>
+                        <option value="44100" selected>44,100 Hz</option>
+                        <option value="48000">48,000 Hz</option>
+                    </select>
+                </div>
+                <div class="option-group">
+                    <label for="channels">Channels</label>
+                    <select id="channels">
+                        <option value="1" selected>Mono (1)</option>
+                        <option value="2">Stereo (2)</option>
+                    </select>
+                </div>
+                <div class="option-group">
+                    <label for="format">Format</label>
+                    <select id="format">
+                        <option value="wav" selected>WAV</option>
+                        <option value="raw">RAW</option>
+                    </select>
+                </div>
+            </div>
+            <button id="setOptionsBtn">Update Options</button>
+        </div>
+
+        <div class="section">
+            <h2>Available Commands</h2>
+            <div id="commands" class="commands">
+                <div class="command">Checking...</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Recording State</h2>
+            <div id="stateInfo" class="audio-data">No recording state available</div>
+        </div>
+
+        <div class="section">
+            <h2>Audio Data</h2>
+            <div id="audioData" class="audio-data">No audio data available</div>
+        </div>
+
+        <div class="section">
+            <h2>Direct API Test</h2>
+            <div class="controls">
+                <button id="directStartBtn">Direct Start</button>
+                <button id="directStopBtn" disabled>Direct Stop</button>
+                <button id="directStateBtn">Get Direct State</button>
+            </div>
+            <div id="directStatus" class="status info">Direct API ready</div>
+        </div>
+    </div>
+
+    <script>
+        // Check if audio recording API is available
+        if (!window.audioRecording) {
+            document.body.innerHTML = '<div class="container"><h1>❌ Audio Recording API Not Available</h1><p>This page requires the audio recording preload script to be loaded.</p></div>';
+        }
+
+        // DOM elements
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const status = document.getElementById('status');
+        const stateInfo = document.getElementById('stateInfo');
+        const audioData = document.getElementById('audioData');
+        const commands = document.getElementById('commands');
+        const directStartBtn = document.getElementById('directStartBtn');
+        const directStopBtn = document.getElementById('directStopBtn');
+        const directStateBtn = document.getElementById('directStateBtn');
+        const directStatus = document.getElementById('directStatus');
+
+        // Recording state
+        let isRecording = false;
+
+        // Update UI based on recording state
+        function updateUI() {
+            startBtn.disabled = isRecording;
+            stopBtn.disabled = !isRecording;
+            toggleBtn.textContent = isRecording ? 'Stop Recording' : 'Start Recording';
+            toggleBtn.className = isRecording ? 'recording' : '';
+            directStartBtn.disabled = isRecording;
+            directStopBtn.disabled = !isRecording;
+        }
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        // Show direct status message
+        function showDirectStatus(message, type = 'info') {
+            directStatus.textContent = message;
+            directStatus.className = `status ${type}`;
+        }
+
+        // Update recording state display
+        async function updateStateDisplay() {
+            try {
+                const result = await window.audioRecording.getRecordingState();
+                if (result.success) {
+                    stateInfo.textContent = JSON.stringify(result.state, null, 2);
+                } else {
+                    stateInfo.textContent = `Error: ${result.error}`;
+                }
+            } catch (error) {
+                stateInfo.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Update audio data display
+        async function updateAudioDataDisplay() {
+            try {
+                const result = await window.audioRecording.getAudioData();
+                if (result.success && result.audioData) {
+                    audioData.textContent = JSON.stringify(result.audioData, null, 2);
+                } else {
+                    audioData.textContent = 'No audio data available';
+                }
+            } catch (error) {
+                audioData.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Update available commands display
+        async function updateCommandsDisplay() {
+            try {
+                const result = await window.audioRecording.getAvailableCommands();
+                if (result.success) {
+                    commands.innerHTML = '';
+                    Object.entries(result.commands).forEach(([cmd, available]) => {
+                        const div = document.createElement('div');
+                        div.className = `command ${available ? 'available' : 'unavailable'}`;
+                        div.textContent = `${cmd}: ${available ? '✓' : '✗'}`;
+                        commands.appendChild(div);
+                    });
+                } else {
+                    commands.innerHTML = '<div class="command unavailable">Error loading commands</div>';
+                }
+            } catch (error) {
+                commands.innerHTML = '<div class="command unavailable">Error: ' + error.message + '</div>';
+            }
+        }
+
+        // Event listeners
+        startBtn.addEventListener('click', async () => {
+            try {
+                const options = {
+                    sampleRate: parseInt(document.getElementById('sampleRate').value),
+                    channels: parseInt(document.getElementById('channels').value),
+                    format: document.getElementById('format').value
+                };
+                
+                showStatus('Starting recording...', 'info');
+                const result = await window.audioRecording.startRecording(options);
+                
+                if (result.success) {
+                    isRecording = true;
+                    updateUI();
+                    showStatus('Recording started successfully', 'success');
+                } else {
+                    showStatus(`Failed to start recording: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        stopBtn.addEventListener('click', async () => {
+            try {
+                showStatus('Stopping recording...', 'info');
+                const result = await window.audioRecording.stopRecording();
+                
+                if (result.success) {
+                    isRecording = false;
+                    updateUI();
+                    showStatus('Recording stopped successfully', 'success');
+                    updateAudioDataDisplay();
+                } else {
+                    showStatus(`Failed to stop recording: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        toggleBtn.addEventListener('click', async () => {
+            try {
+                const options = {
+                    sampleRate: parseInt(document.getElementById('sampleRate').value),
+                    channels: parseInt(document.getElementById('channels').value),
+                    format: document.getElementById('format').value
+                };
+                
+                showStatus('Toggling recording...', 'info');
+                const result = await window.audioRecording.toggleRecording(options);
+                
+                if (result.success) {
+                    isRecording = !isRecording;
+                    updateUI();
+                    showStatus(isRecording ? 'Recording started' : 'Recording stopped', 'success');
+                    if (!isRecording) {
+                        updateAudioDataDisplay();
+                    }
+                } else {
+                    showStatus(`Failed to toggle recording: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('setOptionsBtn').addEventListener('click', async () => {
+            try {
+                const options = {
+                    sampleRate: parseInt(document.getElementById('sampleRate').value),
+                    channels: parseInt(document.getElementById('channels').value),
+                    format: document.getElementById('format').value
+                };
+                
+                const result = await window.audioRecording.setRecordingOptions(options);
+                if (result.success) {
+                    showStatus('Recording options updated', 'success');
+                } else {
+                    showStatus(`Failed to update options: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Direct API test
+        directStartBtn.addEventListener('click', async () => {
+            try {
+                const options = {
+                    sampleRate: parseInt(document.getElementById('sampleRate').value),
+                    channels: parseInt(document.getElementById('channels').value),
+                    format: document.getElementById('format').value
+                };
+                
+                showDirectStatus('Starting direct recording...', 'info');
+                const result = await window.audioRecording.direct.start(options);
+                
+                if (result.success) {
+                    showDirectStatus('Direct recording started', 'success');
+                } else {
+                    showDirectStatus(`Failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showDirectStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        directStopBtn.addEventListener('click', async () => {
+            try {
+                showDirectStatus('Stopping direct recording...', 'info');
+                const result = await window.audioRecording.direct.stop();
+                
+                if (result.success) {
+                    showDirectStatus('Direct recording stopped', 'success');
+                } else {
+                    showDirectStatus(`Failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showDirectStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        directStateBtn.addEventListener('click', async () => {
+            try {
+                const result = await window.audioRecording.direct.getState();
+                if (result.success) {
+                    showDirectStatus('Direct state: ' + JSON.stringify(result.state), 'info');
+                } else {
+                    showDirectStatus(`Failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showDirectStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Event listeners for audio recording events
+        window.audioRecording.on.recordingStarted(() => {
+            console.log('Recording started event received');
+            isRecording = true;
+            updateUI();
+        });
+
+        window.audioRecording.on.recordingStopped(() => {
+            console.log('Recording stopped event received');
+            isRecording = false;
+            updateUI();
+            updateAudioDataDisplay();
+        });
+
+        window.audioRecording.on.audioDataReady((data) => {
+            console.log('Audio data ready event received', data);
+            updateAudioDataDisplay();
+        });
+
+        window.audioRecording.on.recordingError((error) => {
+            console.error('Recording error event received', error);
+            showStatus(`Recording error: ${error.message}`, 'error');
+        });
+
+        // Initialize
+        updateUI();
+        updateStateDisplay();
+        updateCommandsDisplay();
+
+        // Update state periodically
+        setInterval(updateStateDisplay, 1000);
+    </script>
+</body>
+</html>

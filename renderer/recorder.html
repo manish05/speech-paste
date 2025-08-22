@@ -1,643 +1,635 @@
 <!doctype html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Speech Paste Recorder</title>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      
-      body { 
-        font-family: -apple-system, system-ui, sans-serif; 
-        background: transparent;
-        color: white;
-        user-select: none;
-        -webkit-user-select: none;
-        height: 100vh;
-        overflow: hidden;
-        -webkit-app-region: drag;
-      }
-      
-      .widget {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.9);
-        border-radius: 12px;
-        padding: 20px;
-        min-width: 200px;
-        text-align: center;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        transition: all 0.3s ease;
-        -webkit-app-region: drag;
-        position: relative;
-      }
-      
-      .status {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 15px;
-        min-height: 20px;
-      }
-      
-      .recording-indicator {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        background: #ff0000;
-        border-radius: 50%;
-        margin-right: 4px;
-        animation: pulse 1.5s ease-in-out infinite;
-      }
-      
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-      }
-      
-      .stop-btn {
-        background: #ff0000;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 20px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        -webkit-app-region: no-drag;
-      }
-      
-      .stop-btn:hover {
-        background: #cc0000;
-        transform: translateY(-1px);
-      }
-      
-      .stop-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none;
-      }
-      
-      .restart-btn {
-        background: #007AFF;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 20px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        -webkit-app-region: no-drag;
-        margin-top: 10px;
-        display: none;
-      }
-      
-      .restart-btn:hover {
-        background: #0056CC;
-        transform: translateY(-1px);
-      }
-      
-      .restart-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none;
-      }
-      
-      .error-state {
-        color: #ff6b6b;
-      }
-      
-      .close-btn {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        background: rgba(255, 255, 255, 0.1);
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        -webkit-app-region: no-drag;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-      }
-      
-      .close-btn:hover {
-        background: rgba(255, 255, 255, 0.2);
-        transform: scale(1.1);
-      }
-      
-      .permission-indicator {
-        font-size: 12px;
-        opacity: 0.7;
-        margin-top: 8px;
-        padding: 4px 8px;
-        border-radius: 4px;
-        background: rgba(255, 255, 255, 0.1);
-      }
-      
-      .permission-granted {
-        color: #4CAF50;
-      }
-      
-      .permission-denied {
-        color: #f44336;
-      }
-      
-      .permission-prompt {
-        color: #ff9800;
-      }
-      
 
-    </style>
-  </head>
-  <body>
-    <div class="widget" id="widget">
-      <button class="close-btn" id="closeBtn">×</button>
-      <div class="status" id="status">Ready</div>
-      <div class="permission-indicator" id="permissionIndicator"></div>
-      <button class="stop-btn" id="stopBtn" disabled>Stop Recording</button>
-      <button class="restart-btn" id="restartBtn" disabled>Restart Recording</button>
-    </div>
-    
-    <script type="module">
-      // UI elements
-      const statusEl = document.getElementById('status');
-      const stopBtn = document.getElementById('stopBtn');
-      const restartBtn = document.getElementById('restartBtn');
-      const closeBtn = document.getElementById('closeBtn');
-      const permissionIndicator = document.getElementById('permissionIndicator');
-      
-      // Recording state
-      let mediaRecorder = null;
-      let stream = null;
-      let chunks = [];
-      let mimeType = null;
-      let isRecording = false;
-      let microphonePermissionState = 'unknown';
-      
-      // Initialize
-      console.log('Minimal recorder widget initialized');
-      
-      // Check if recorderAPI is available
-      if (window.recorderAPI) {
-        console.log('recorderAPI is available');
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Speech Paste Recorder</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, system-ui, sans-serif;
+      background: transparent;
+      color: white;
+      user-select: none;
+      -webkit-user-select: none;
+      height: 100vh;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
+
+    .widget {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      border-radius: 12px;
+      padding: 20px;
+      min-width: 200px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+      -webkit-app-region: drag;
+      position: relative;
+    }
+
+    .status {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      min-height: 20px;
+    }
+
+    .recording-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #ff0000;
+      border-radius: 50%;
+      margin-right: 4px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .stop-btn {
+      background: #ff0000;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      -webkit-app-region: no-drag;
+    }
+
+    .stop-btn:hover {
+      background: #cc0000;
+      transform: translateY(-1px);
+    }
+
+    .stop-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .restart-btn {
+      background: #007AFF;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      -webkit-app-region: no-drag;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .restart-btn:hover {
+      background: #0056CC;
+      transform: translateY(-1px);
+    }
+
+    .restart-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .error-state {
+      color: #ff6b6b;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      -webkit-app-region: no-drag;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="widget" id="widget">
+    <button class="close-btn" id="closeBtn">×</button>
+    <div class="status" id="status">Ready</div>
+    <button class="stop-btn" id="stopBtn" disabled>Stop Recording</button>
+    <button class="restart-btn" id="restartBtn" disabled>Restart Recording</button>
+  </div>
+
+  <script type="module">
+    // UI elements
+    const statusEl = document.getElementById('status');
+    const stopBtn = document.getElementById('stopBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const closeBtn = document.getElementById('closeBtn');
+
+    // Recording state
+    let mediaRecorder = null;
+    let stream = null;
+    let chunks = [];
+    let mimeType = null;
+    let isRecording = false;
+    let microphoneGranted = false; // Track if permission has been granted
+
+    // Initialize
+    console.log('Minimal recorder widget initialized');
+
+    // Check if recorderAPI is available
+    if (window.recorderAPI) {
+      console.log('recorderAPI is available');
+    } else {
+      console.error('recorderAPI is not available');
+    }
+
+    // Function to immediately clear any cached status
+    function clearCachedStatus() {
+      statusEl.textContent = 'Ready';
+      statusEl.classList.remove('error-state');
+      console.log('Cleared cached status message');
+    }
+
+    // Clear any cached status on page load
+    clearCachedStatus();
+
+    // Pre-check microphone permission status without triggering a request
+    async function checkMicrophonePermissionStatus() {
+      try {
+        if (navigator.permissions && navigator.permissions.query) {
+          const permission = await navigator.permissions.query({ name: 'microphone' });
+          console.log('Initial microphone permission status:', permission.state);
+          return permission.state;
+        }
+      } catch (err) {
+        console.log('Could not check permission status:', err.message);
+      }
+      return 'unknown';
+    }
+
+    // Check permission status on load without triggering any requests
+    checkMicrophonePermissionStatus();
+
+    function showErrorState() {
+      statusEl.classList.add('error-state');
+      closeBtn.style.display = 'flex';
+      stopBtn.style.display = 'none';
+    }
+
+    function hideErrorState() {
+      statusEl.classList.remove('error-state');
+      closeBtn.style.display = 'none';
+    }
+
+    // Permission indicator removed - using system-level permissions
+
+    function closeWindow() {
+      if (window.recorderAPI && window.recorderAPI.closeWindow) {
+        window.recorderAPI.closeWindow();
       } else {
-        console.error('recorderAPI is not available');
+        // Fallback: try to close via IPC
+        if (window.recorderAPI && window.recorderAPI.notifyStopped) {
+          window.recorderAPI.notifyStopped();
+        }
       }
-      
-      // Check microphone permission state on page load
-      async function checkMicrophonePermission() {
-        try {
-          if (navigator.permissions && navigator.permissions.query) {
-            const permissions = await navigator.permissions.query({ name: 'microphone' });
-            microphonePermissionState = permissions.state;
-            console.log('Initial microphone permission state:', microphonePermissionState);
-            
-            // Listen for permission changes
-            permissions.onchange = () => {
-              const oldState = microphonePermissionState;
-              microphonePermissionState = permissions.state;
-              console.log(`Microphone permission state changed from ${oldState} to: ${microphonePermissionState}`);
-              
-              // Update permission indicator
-              updatePermissionIndicator();
-              
-              // Update UI if permission was granted
-              if (microphonePermissionState === 'granted' && oldState !== 'granted') {
-                console.log('Microphone permission granted, ready to record');
-                statusEl.textContent = 'Ready';
-                hideErrorState();
-              } else if (microphonePermissionState === 'denied') {
-                console.log('Microphone permission denied');
-                statusEl.textContent = 'Microphone access denied';
-                showErrorState();
-              }
-            };
-          }
-                  } catch (error) {
-            console.log('Could not check microphone permissions:', error.message);
-            microphonePermissionState = 'unknown';
-          } finally {
-            updatePermissionIndicator();
-          }
-      }
-      
-      // Check permissions when page loads
-      checkMicrophonePermission();
-      
-      function showErrorState() {
-        statusEl.classList.add('error-state');
-        closeBtn.style.display = 'flex';
-        stopBtn.style.display = 'none';
-      }
-      
-      function hideErrorState() {
+    }
+
+    async function startRecording() {
+      try {
+        console.log('Starting recording...');
+
+        // Reset UI state for new recording - clear any cached "Copied!" message
+        statusEl.textContent = 'Recording... Please speak...';
         statusEl.classList.remove('error-state');
-        closeBtn.style.display = 'none';
-      }
-      
-      function updatePermissionIndicator() {
-        if (!permissionIndicator) return;
-        
-        const state = microphonePermissionState;
-        permissionIndicator.className = 'permission-indicator';
-        
-        switch (state) {
-          case 'granted':
-            permissionIndicator.textContent = '✓ Microphone access granted';
-            permissionIndicator.classList.add('permission-granted');
-            permissionIndicator.style.display = 'none';
-            break;
-          case 'denied':
-            permissionIndicator.textContent = '✗ Microphone access denied';
-            permissionIndicator.classList.add('permission-denied');
-            break;
-          case 'prompt':
-            permissionIndicator.textContent = '? Microphone access needed';
-            permissionIndicator.classList.add('permission-prompt');
-            break;
-          default:
-            permissionIndicator.textContent = '? Checking microphone access...';
-            permissionIndicator.classList.add('permission-prompt');
-        }
-      }
-      
-      function closeWindow() {
-        if (window.recorderAPI && window.recorderAPI.closeWindow) {
-          window.recorderAPI.closeWindow();
+        restartBtn.style.display = 'none';
+        restartBtn.disabled = true;
+        stopBtn.style.display = 'inline-block';
+
+        // If we already have microphone permission and stream, reuse it
+        if (microphoneGranted && stream && stream.active) {
+          console.log('Reusing existing microphone stream');
+          // Jump directly to setting up MediaRecorder
         } else {
-          // Fallback: try to close via IPC
-          if (window.recorderAPI && window.recorderAPI.notifyStopped) {
-            window.recorderAPI.notifyStopped();
-          }
-        }
-      }
-      
-      async function startRecording() {
-        try {
-          console.log('Starting recording...');
-          
-          // Reset UI state for new recording
-          statusEl.textContent = 'Recording... Please speak...';
-          statusEl.classList.remove('error-state');
-          restartBtn.style.display = 'none';
-          restartBtn.disabled = true;
-          stopBtn.style.display = 'inline-block';
-          
-          // Check microphone permission state
-          console.log('Current microphone permission state:', microphonePermissionState);
-          
-          if (microphonePermissionState === 'denied') {
-            throw new Error('Microphone access denied');
-          }
-          
-          // If permission is granted, try to get stream without prompting
-          if (microphonePermissionState === 'granted') {
-            console.log('Microphone permission already granted, getting stream...');
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          } else {
-            // Permission is 'prompt' or 'unknown', request access
-            console.log('Requesting microphone access...');
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
-                         // Update permission state after successful request
-             if (navigator.permissions && navigator.permissions.query) {
-               const permissions = await navigator.permissions.query({ name: 'microphone' });
-               microphonePermissionState = permissions.state;
-               console.log('Updated microphone permission state:', microphonePermissionState);
-               updatePermissionIndicator();
-             }
-          }
-          
-          console.log('Microphone access granted');
-          
-          mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-            ? 'audio/webm;codecs=opus'
-            : 'audio/webm';
-          
-          mediaRecorder = new MediaRecorder(stream, { mimeType });
-          chunks = [];
-          
-          mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) {
-              chunks.push(e.data);
-              console.log(`Audio chunk received: ${e.data.size} bytes`);
+
+          // Check permission state first using Permissions API
+          let permissionState = 'unknown';
+          try {
+            if (navigator.permissions && navigator.permissions.query) {
+              const permission = await navigator.permissions.query({ name: 'microphone' });
+              permissionState = permission.state;
+              console.log('Microphone permission state:', permissionState);
+
+              // If permission is denied, we can't proceed
+              if (permissionState === 'denied') {
+                throw new Error('Microphone access denied by user');
+              }
             }
-          };
-          
-          mediaRecorder.onstart = () => {
-            console.log('MediaRecorder started');
-            isRecording = true;
-            stopBtn.disabled = false;
-          };
-          
-          mediaRecorder.onstop = async () => {
-            console.log('MediaRecorder stopped');
-            
-            try {
-              if (chunks.length > 0) {
-                const blob = new Blob(chunks, { type: mimeType });
-                console.log(`Audio blob created: ${blob.size} bytes`);
-                
-                // Convert to base64 and send to Gemini
-                const reader = new FileReader();
-                reader.onload = () => {
-                  const dataUrl = reader.result;
-                  const base64Data = dataUrl.split(',')[1];
-                  
-                  console.log('Sending to Gemini for transcription...');
-                  statusEl.textContent = 'Processing...';
-                  
-                  if (window.recorderAPI && window.recorderAPI.sendAudio) {
-                    window.recorderAPI.sendAudio(base64Data, mimeType);
-                  } else {
-                    console.error('recorderAPI.sendAudio not available');
-                    statusEl.textContent = 'Error: API not available';
-                    showErrorState();
-                    
-                    // Show restart button when API is not available
-                    restartBtn.style.display = 'inline-block';
-                    restartBtn.disabled = false;
-                  }
-                };
-                reader.readAsDataURL(blob);
-              } else {
-                console.log('No audio chunks available');
-                statusEl.textContent = 'No audio recorded';
-                showErrorState();
-                
-                // Show restart button when no audio is recorded
-                restartBtn.style.display = 'inline-block';
-                restartBtn.disabled = false;
-              }
-              
-              if (window.recorderAPI && window.recorderAPI.notifyStopped) {
-                window.recorderAPI.notifyStopped();
-              }
-            } catch (error) {
-              console.error(`Error processing audio: ${error.message}`);
-              statusEl.textContent = 'Error processing audio';
+          } catch (permError) {
+            console.log('Could not check permission state:', permError.message);
+            // Continue anyway, let getUserMedia handle it
+          }
+
+          // Get microphone stream
+          console.log('Getting microphone stream...');
+          if (!stream) {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          }
+          console.log('Microphone access granted');
+          microphoneGranted = true;
+        }
+
+        mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : 'audio/webm';
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
+        chunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            chunks.push(e.data);
+            console.log(`Audio chunk received: ${e.data.size} bytes`);
+          }
+        };
+
+        mediaRecorder.onstart = () => {
+          console.log('MediaRecorder started');
+          isRecording = true;
+          stopBtn.disabled = false;
+        };
+
+        mediaRecorder.onstop = async () => {
+          console.log('MediaRecorder stopped');
+
+          try {
+            if (chunks.length > 0) {
+              const blob = new Blob(chunks, { type: mimeType });
+              console.log(`Audio blob created: ${blob.size} bytes`);
+
+              // Convert to base64 and send to Gemini
+              const reader = new FileReader();
+              reader.onload = () => {
+                const dataUrl = reader.result;
+                const base64Data = dataUrl.split(',')[1];
+
+                console.log('Sending to Gemini for transcription...');
+                statusEl.textContent = 'Processing...';
+
+                if (window.recorderAPI && window.recorderAPI.sendAudio) {
+                  window.recorderAPI.sendAudio(base64Data, mimeType);
+                } else {
+                  console.error('recorderAPI.sendAudio not available');
+                  statusEl.textContent = 'Error: API not available';
+                  showErrorState();
+
+                  // Show restart button when API is not available
+                  restartBtn.style.display = 'inline-block';
+                  restartBtn.disabled = false;
+                }
+              };
+              reader.readAsDataURL(blob);
+            } else {
+              console.log('No audio chunks available');
+              statusEl.textContent = 'No audio recorded';
               showErrorState();
-              
-              // Show restart button when processing fails
+
+              // Show restart button when no audio is recorded
               restartBtn.style.display = 'inline-block';
               restartBtn.disabled = false;
             }
-          };
-          
-          mediaRecorder.onerror = (event) => {
-            console.error(`MediaRecorder error: ${event.error}`);
-            statusEl.textContent = 'Recording error occurred';
+
+            if (window.recorderAPI && window.recorderAPI.notifyStopped) {
+              window.recorderAPI.notifyStopped();
+            }
+          } catch (error) {
+            console.error(`Error processing audio: ${error.message}`);
+            statusEl.textContent = 'Error processing audio';
             showErrorState();
-            
-            // Show restart button when MediaRecorder fails
+
+            // Show restart button when processing fails
             restartBtn.style.display = 'inline-block';
             restartBtn.disabled = false;
-          };
-          
-          mediaRecorder.start();
-          
-        } catch (err) {
-          console.error(`Failed to start recording: ${err.message}`);
-          
-          if (err.name === 'NotAllowedError' || err.message.includes('denied')) {
-            statusEl.textContent = 'Microphone access denied';
-            microphonePermissionState = 'denied';
-          } else if (err.name === 'NotFoundError') {
-            statusEl.textContent = 'No microphone found';
-          } else {
-            statusEl.textContent = 'Recording failed';
           }
-          
-          updatePermissionIndicator();
+        };
+
+        mediaRecorder.onerror = (event) => {
+          console.error(`MediaRecorder error: ${event.error}`);
+          statusEl.textContent = 'Recording error occurred';
           showErrorState();
-          
-          // Show restart button when microphone access fails
+
+          // Show restart button when MediaRecorder fails
           restartBtn.style.display = 'inline-block';
           restartBtn.disabled = false;
+        };
+
+        mediaRecorder.start();
+
+      } catch (err) {
+        console.error(`Failed to start recording: ${err.message}`);
+
+        if (err.name === 'NotAllowedError' || err.message.includes('denied')) {
+          statusEl.textContent = 'Microphone access denied. Click restart to try again.';
+        } else if (err.name === 'NotFoundError') {
+          statusEl.textContent = 'No microphone found';
+        } else if (err.name === 'NotReadableError') {
+          statusEl.textContent = 'Microphone in use by another app';
+        } else {
+          statusEl.textContent = 'Recording failed';
         }
+
+        showErrorState();
+
+        // Show restart button when microphone access fails
+        restartBtn.style.display = 'inline-block';
+        restartBtn.disabled = false;
       }
-      
-      function stopRecording() {
-        console.log('Stopping recording...');
-        
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-          mediaRecorder.stop();
-        }
-        
-        if (stream) {
-          stream.getTracks().forEach(track => {
-            track.stop();
-            console.log(`Audio track stopped: ${track.kind}`);
-          });
-          stream = null;
-        }
-        
-        isRecording = false;
-        stopBtn.disabled = true;
-        
-        // Notify main process that recording was stopped from the UI
-        if (window.recorderAPI && window.recorderAPI.stopRecording) {
-          window.recorderAPI.stopRecording();
-        }
+    }
+
+    function stopRecording() {
+      console.log('Stopping recording...');
+
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
       }
-      
-      function resetState() {
-        console.log('Resetting recorder state...');
-        
-        // Stop any ongoing recording
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-          mediaRecorder.stop();
-        }
-        
-        // Stop any active stream
-        if (stream) {
-          stream.getTracks().forEach(track => {
-            track.stop();
-            console.log(`Audio track stopped during reset: ${track.kind}`);
-          });
-          stream = null;
-        }
-        
-        // Reset all state variables
-        mediaRecorder = null;
-        chunks = [];
-        mimeType = null;
-        isRecording = false;
-        
-        // Re-check microphone permission state
-        checkMicrophonePermission();
-        
-        // Reset UI
-        statusEl.textContent = 'Ready';
-        stopBtn.disabled = true;
-        restartBtn.style.display = 'none';
-        restartBtn.disabled = true;
-        hideErrorState();
-        
-        console.log('Recorder state reset complete');
+
+      // Don't stop the stream here to preserve microphone permission
+      // The stream will be reused for the next recording
+      console.log('Preserving microphone stream for reuse');
+
+      isRecording = false;
+      stopBtn.disabled = true;
+
+      // Notify main process that recording was stopped from the UI
+      if (window.recorderAPI && window.recorderAPI.stopRecording) {
+        window.recorderAPI.stopRecording();
       }
-      
-      function restartRecording() {
-        console.log('Restarting recording...');
-        
-        // Reset current state
-        resetState();
-        
-        // Start new recording after a short delay
-        setTimeout(() => {
-          startRecording();
-        }, 500);
+    }
+
+    function resetState() {
+      console.log('Resetting recorder state...');
+
+      // Stop any ongoing recording
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
       }
-      
-      // Function to handle manual permission grant attempts
-      async function requestMicrophonePermission() {
-        try {
-          console.log('Manually requesting microphone permission...');
-          const testStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          testStream.getTracks().forEach(track => track.stop());
-          
-                     // Update permission state
-           if (navigator.permissions && navigator.permissions.query) {
-             const permissions = await navigator.permissions.query({ name: 'microphone' });
-             microphonePermissionState = permissions.state;
-             console.log('Permission state after manual request:', microphonePermissionState);
-             updatePermissionIndicator();
-           }
-          
-          return true;
-        } catch (error) {
-          console.error('Manual permission request failed:', error);
+
+      // Don't stop the stream during reset to preserve microphone permission
+      // Only stop if explicitly requested or on window close
+      console.log('Preserving microphone stream during reset');
+
+      // Reset all state variables
+      mediaRecorder = null;
+      chunks = [];
+      mimeType = null;
+      isRecording = false;
+
+      // Reset UI - ensure any cached "Copied!" message is cleared immediately
+      statusEl.textContent = 'Ready';
+      statusEl.classList.remove('error-state');
+      stopBtn.disabled = true;
+      restartBtn.style.display = 'none';
+      restartBtn.disabled = true;
+      hideErrorState();
+
+      console.log('Recorder state reset complete');
+    }
+
+    function restartRecording() {
+      console.log('Restarting recording...');
+
+      // Immediately clear any cached status
+      clearCachedStatus();
+
+      // Reset current state
+      resetState();
+
+      // Start new recording after a short delay
+      setTimeout(() => {
+        startRecording();
+      }, 500);
+    }
+
+    // Function to handle permission recovery
+    async function requestMicrophonePermission() {
+      try {
+        console.log('Checking microphone permission...');
+
+        // Check current permission state
+        let permissionState = 'unknown';
+        if (navigator.permissions && navigator.permissions.query) {
+          const permission = await navigator.permissions.query({ name: 'microphone' });
+          permissionState = permission.state;
+          console.log('Current permission state:', permissionState);
+        }
+
+        // If permission is denied, we need to inform the user how to re-enable it
+        if (permissionState === 'denied') {
+          console.log('Permission denied - user needs to manually re-enable');
+          statusEl.textContent = 'Microphone blocked. Please enable in browser settings.';
+          showErrorState();
           return false;
         }
-      }
-      
 
-      
-      // Event listeners
-      stopBtn.addEventListener('click', stopRecording);
-      restartBtn.addEventListener('click', async () => {
-        // If permission is denied, try to request it first
-        if (microphonePermissionState === 'denied') {
-          console.log('Permission denied, attempting to request permission...');
-          const granted = await requestMicrophonePermission();
-          if (!granted) {
-            console.log('Permission request failed, cannot restart recording');
-            return;
-          }
+        // If permission is granted or prompt, we can proceed
+        // Don't create a test stream here - let startRecording handle it
+        if (permissionState === 'granted' || permissionState === 'prompt') {
+          console.log('Microphone permission available for use');
+          return true;
         }
+
+        // For unknown state, assume we can try
+        return true;
+      } catch (error) {
+        console.error('Microphone permission check failed:', error);
+        // If we can't check permissions, assume we can try
+        return true;
+      }
+    }
+
+
+    // Function to release microphone stream
+    function releaseStream() {
+      if (stream) {
+        stream.getTracks().forEach(track => {
+          track.stop();
+          console.log(`Audio track stopped: ${track.kind}`);
+        });
+        stream = null;
+        microphoneGranted = false;
+      }
+    }
+
+    // Clean up on window unload
+    window.addEventListener('beforeunload', () => {
+      console.log('Window unloading, releasing microphone stream');
+      releaseStream();
+    });
+
+    // Clear cached status when window becomes active
+    window.addEventListener('focus', () => {
+      console.log('Window focused, clearing cached status');
+      clearCachedStatus();
+    });
+
+    // Clear cached status when window is shown
+    window.addEventListener('pageshow', () => {
+      console.log('Page shown, clearing cached status');
+      clearCachedStatus();
+    });
+
+    // Event listeners
+    stopBtn.addEventListener('click', stopRecording);
+    restartBtn.addEventListener('click', async () => {
+      // Try to recover permission if needed
+      const recovered = await requestMicrophonePermission();
+      if (recovered) {
         restartRecording();
+      }
+    });
+    closeBtn.addEventListener('click', closeWindow);
+
+    // IPC handlers
+    if (window.recorderAPI) {
+      window.recorderAPI.onStart(() => {
+        console.log('Received start command from main process');
+        // Immediately clear any cached status message
+        statusEl.textContent = 'Starting...';
+        // Reset state before starting new recording
+        resetState();
+        startRecording();
       });
-      closeBtn.addEventListener('click', closeWindow);
-      
-      // IPC handlers
-      if (window.recorderAPI) {
-        window.recorderAPI.onStart(() => {
-          console.log('Received start command from main process');
-          startRecording();
-        });
-        
-        window.recorderAPI.onStop(() => {
-          console.log('Received stop command from main process');
-          stopRecording();
-        });
-        
-        window.recorderAPI.onReset(() => {
-          console.log('Received reset command from main process');
-          resetState();
-        });
-        
-        window.recorderAPI.onProcessing(() => {
-          console.log('Processing state received from main process');
-          statusEl.textContent = 'Processing...';
-        });
-        
-        window.recorderAPI.onTranscribed((event, text) => {
-          console.log('Received transcription result from main process');
-          console.log(`Transcription: "${text}"`);
-          
-          // Copy to clipboard using main process API
-          if (window.recorderAPI && window.recorderAPI.copyToClipboard) {
-            console.log('Calling copyToClipboard API...');
-            window.recorderAPI.copyToClipboard(text).then((result) => {
-              console.log('copyToClipboard result:', result);
-              if (result.success) {
-                console.log('Text copied to clipboard');
-                statusEl.textContent = 'Copied!';
-                // Notify main process to show notification and close windows
-                if (window.recorderAPI && window.recorderAPI.notifyTranscribed) {
-                  window.recorderAPI.notifyTranscribed(text);
-                }
-              } else {
-                console.error('Failed to copy to clipboard:', result.error);
-                statusEl.textContent = 'Copy failed';
-                showErrorState();
-                
-                // Show restart button when copy fails
-                restartBtn.style.display = 'inline-block';
-                restartBtn.disabled = false;
-                
-                // Hide stop button since recording is no longer active
-                stopBtn.style.display = 'none';
+
+      window.recorderAPI.onStop(() => {
+        console.log('Received stop command from main process');
+        stopRecording();
+      });
+
+      window.recorderAPI.onReset(() => {
+        console.log('Received reset command from main process');
+        resetState();
+      });
+
+      window.recorderAPI.onRelease(() => {
+        console.log('Received release command from main process');
+        releaseStream();
+      });
+
+      window.recorderAPI.onProcessing(() => {
+        console.log('Processing state received from main process');
+        statusEl.textContent = 'Processing...';
+      });
+
+      window.recorderAPI.onTranscribed((event, text) => {
+        console.log('Received transcription result from main process');
+        console.log(`Transcription: "${text}"`);
+
+        // Copy to clipboard using main process API
+        if (window.recorderAPI && window.recorderAPI.copyToClipboard) {
+          console.log('Calling copyToClipboard API...');
+          window.recorderAPI.copyToClipboard(text).then((result) => {
+            console.log('copyToClipboard result:', result);
+            if (result.success) {
+              console.log('Text copied to clipboard');
+              statusEl.textContent = 'Copied!';
+              // Notify main process to show notification and close windows
+              if (window.recorderAPI && window.recorderAPI.notifyTranscribed) {
+                window.recorderAPI.notifyTranscribed(text);
               }
-            }).catch(error => {
-              console.error('copyToClipboard promise rejected:', error);
+            } else {
+              console.error('Failed to copy to clipboard:', result.error);
               statusEl.textContent = 'Copy failed';
               showErrorState();
-              
+
               // Show restart button when copy fails
               restartBtn.style.display = 'inline-block';
               restartBtn.disabled = false;
-              
+
               // Hide stop button since recording is no longer active
               stopBtn.style.display = 'none';
-            });
-          } else {
-            console.error('copyToClipboard API not available');
+            }
+          }).catch(error => {
+            console.error('copyToClipboard promise rejected:', error);
             statusEl.textContent = 'Copy failed';
             showErrorState();
-            
-            // Show restart button when API is not available
+
+            // Show restart button when copy fails
             restartBtn.style.display = 'inline-block';
             restartBtn.disabled = false;
-            
+
             // Hide stop button since recording is no longer active
             stopBtn.style.display = 'none';
-          }
-        });
-        
-        window.recorderAPI.onError((message) => {
-          console.error(`Error from main process: ${message}`);
-          statusEl.textContent = 'Recording failed';
+          });
+        } else {
+          console.error('copyToClipboard API not available');
+          statusEl.textContent = 'Copy failed';
           showErrorState();
-          
-          // Show restart button when recording fails
+
+          // Show restart button when API is not available
           restartBtn.style.display = 'inline-block';
           restartBtn.disabled = false;
-          
+
           // Hide stop button since recording is no longer active
           stopBtn.style.display = 'none';
-        });
-      }
-      
+        }
+      });
 
-    </script>
-  </body>
+      window.recorderAPI.onError((message) => {
+        console.error(`Error from main process: ${message}`);
+        statusEl.textContent = 'Recording failed';
+        showErrorState();
+
+        // Show restart button when recording fails
+        restartBtn.style.display = 'inline-block';
+        restartBtn.disabled = false;
+
+        // Hide stop button since recording is no longer active
+        stopBtn.style.display = 'none';
+      });
+    }
+
+
+  </script>
+</body>
+
 </html>
-
-

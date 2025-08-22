@@ -1,4 +1,4 @@
-import { ipcMain, clipboard } from 'electron';
+import { ipcMain, clipboard, systemPreferences } from 'electron';
 import { log, showNotification } from '../utils/logger.js';
 import { getApiKey, setApiKey } from '../services/keychain.js';
 import { transcribeWithGemini } from '../services/transcription.js';
@@ -7,6 +7,8 @@ import { getMicTestWindow } from '../windows/mic-test.js';
 import { showNotification as showNotificationWindow } from '../windows/notification.js';
 import { recordingStateManager } from '../recording/state-manager.js';
 import { createMicTestWindow } from '../windows/mic-test.js';
+import { createAudioTestWindow } from '../windows/audio-test.js';
+import { audioRecorder } from '../services/audio-recorder.js';
 
 /**
  * Sets up all IPC handlers
@@ -131,5 +133,148 @@ export function setupIpcHandlers() {
   ipcMain.on('settings:openDebug', async () => {
     log('Opening debug window...', 'info');
     await createMicTestWindow();
+  });
+
+  // Audio test window handler
+  ipcMain.on('settings:openAudioTest', async () => {
+    log('Opening audio test window...', 'info');
+    await createAudioTestWindow();
+  });
+
+  // Microphone access handler
+  ipcMain.handle('microphone:requestAccess', async () => {
+    try {
+      log('Requesting microphone access via system preferences...', 'info');
+      
+      if (process.platform === 'darwin') {
+        const hasAccess = await systemPreferences.askForMediaAccess('microphone');
+        log(`Microphone access granted: ${hasAccess}`, 'info');
+        return { success: hasAccess, granted: hasAccess };
+      } else {
+        // On other platforms, assume access is available
+        log('Non-macOS platform, assuming microphone access', 'info');
+        return { success: true, granted: true };
+      }
+    } catch (error) {
+      log(`Failed to request microphone access: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
+  });
+
+  // ============================================================================
+  // NATIVE AUDIO RECORDING HANDLERS
+  // ============================================================================
+
+  // Start native audio recording
+  ipcMain.handle('audio:startRecording', async (_event, options = {}) => {
+    try {
+      log('Starting native audio recording via IPC...', 'info');
+      const success = await recordingStateManager.startRecording(options);
+      return { success };
+    } catch (error) {
+      log(`Failed to start audio recording: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Stop native audio recording
+  ipcMain.handle('audio:stopRecording', async () => {
+    try {
+      log('Stopping native audio recording via IPC...', 'info');
+      const result = await recordingStateManager.stopRecording();
+      return { success: true, result };
+    } catch (error) {
+      log(`Failed to stop audio recording: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Get recording state
+  ipcMain.handle('audio:getRecordingState', () => {
+    try {
+      const state = recordingStateManager.getRecordingState();
+      return { success: true, state };
+    } catch (error) {
+      log(`Failed to get recording state: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Get stored audio data
+  ipcMain.handle('audio:getAudioData', () => {
+    try {
+      const audioData = recordingStateManager.getAudioData();
+      return { success: true, audioData };
+    } catch (error) {
+      log(`Failed to get audio data: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Set recording options
+  ipcMain.handle('audio:setRecordingOptions', (_event, options) => {
+    try {
+      recordingStateManager.setRecordingOptions(options);
+      return { success: true };
+    } catch (error) {
+      log(`Failed to set recording options: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Get available audio recording commands
+  ipcMain.handle('audio:getAvailableCommands', async () => {
+    try {
+      const commands = await recordingStateManager.getAvailableCommands();
+      return { success: true, commands };
+    } catch (error) {
+      log(`Failed to get available commands: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Toggle recording
+  ipcMain.handle('audio:toggleRecording', async (_event, options = {}) => {
+    try {
+      log('Toggling audio recording via IPC...', 'info');
+      const result = await recordingStateManager.toggleRecording(options);
+      return { success: true, result };
+    } catch (error) {
+      log(`Failed to toggle recording: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Direct audio recorder access (for advanced usage)
+  ipcMain.handle('audio:directStart', async (_event, options = {}) => {
+    try {
+      log('Starting direct audio recording...', 'info');
+      const success = await audioRecorder.startRecording(options);
+      return { success };
+    } catch (error) {
+      log(`Failed to start direct audio recording: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('audio:directStop', async () => {
+    try {
+      log('Stopping direct audio recording...', 'info');
+      const result = await audioRecorder.stopRecording();
+      return { success: true, result };
+    } catch (error) {
+      log(`Failed to stop direct audio recording: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('audio:directGetState', () => {
+    try {
+      const state = audioRecorder.getRecordingState();
+      return { success: true, state };
+    } catch (error) {
+      log(`Failed to get direct recording state: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
   });
 }
