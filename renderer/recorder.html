@@ -37,6 +37,7 @@
         border: 1px solid rgba(255, 255, 255, 0.1);
         transition: all 0.3s ease;
         -webkit-app-region: drag;
+        position: relative;
       }
       
       .status {
@@ -115,11 +116,37 @@
         color: #ff6b6b;
       }
       
+      .close-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        -webkit-app-region: no-drag;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+      
+      .close-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
+      }
+      
 
     </style>
   </head>
   <body>
     <div class="widget" id="widget">
+      <button class="close-btn" id="closeBtn">×</button>
       <div class="status" id="status">Ready</div>
       <button class="stop-btn" id="stopBtn" disabled>Stop Recording</button>
       <button class="restart-btn" id="restartBtn" disabled>Restart Recording</button>
@@ -130,6 +157,7 @@
       const statusEl = document.getElementById('status');
       const stopBtn = document.getElementById('stopBtn');
       const restartBtn = document.getElementById('restartBtn');
+      const closeBtn = document.getElementById('closeBtn');
       
       // Recording state
       let mediaRecorder = null;
@@ -146,6 +174,28 @@
         console.log('recorderAPI is available');
       } else {
         console.error('recorderAPI is not available');
+      }
+      
+      function showErrorState() {
+        statusEl.classList.add('error-state');
+        closeBtn.style.display = 'flex';
+        stopBtn.style.display = 'none';
+      }
+      
+      function hideErrorState() {
+        statusEl.classList.remove('error-state');
+        closeBtn.style.display = 'none';
+      }
+      
+      function closeWindow() {
+        if (window.recorderAPI && window.recorderAPI.closeWindow) {
+          window.recorderAPI.closeWindow();
+        } else {
+          // Fallback: try to close via IPC
+          if (window.recorderAPI && window.recorderAPI.notifyStopped) {
+            window.recorderAPI.notifyStopped();
+          }
+        }
       }
       
       async function startRecording() {
@@ -204,28 +254,22 @@
                   } else {
                     console.error('recorderAPI.sendAudio not available');
                     statusEl.textContent = 'Error: API not available';
-                    statusEl.classList.add('error-state');
+                    showErrorState();
                     
                     // Show restart button when API is not available
                     restartBtn.style.display = 'inline-block';
                     restartBtn.disabled = false;
-                    
-                    // Hide stop button since recording is no longer active
-                    stopBtn.style.display = 'none';
                   }
                 };
                 reader.readAsDataURL(blob);
               } else {
                 console.log('No audio chunks available');
                 statusEl.textContent = 'No audio recorded';
-                statusEl.classList.add('error-state');
+                showErrorState();
                 
                 // Show restart button when no audio is recorded
                 restartBtn.style.display = 'inline-block';
                 restartBtn.disabled = false;
-                
-                // Hide stop button since recording is no longer active
-                stopBtn.style.display = 'none';
               }
               
               if (window.recorderAPI && window.recorderAPI.notifyStopped) {
@@ -234,28 +278,22 @@
             } catch (error) {
               console.error(`Error processing audio: ${error.message}`);
               statusEl.textContent = 'Error processing audio';
-              statusEl.classList.add('error-state');
+              showErrorState();
               
               // Show restart button when processing fails
               restartBtn.style.display = 'inline-block';
               restartBtn.disabled = false;
-              
-              // Hide stop button since recording is no longer active
-              stopBtn.style.display = 'none';
             }
           };
           
           mediaRecorder.onerror = (event) => {
             console.error(`MediaRecorder error: ${event.error}`);
             statusEl.textContent = 'Recording error occurred';
-            statusEl.classList.add('error-state');
+            showErrorState();
             
             // Show restart button when MediaRecorder fails
             restartBtn.style.display = 'inline-block';
             restartBtn.disabled = false;
-            
-            // Hide stop button since recording is no longer active
-            stopBtn.style.display = 'none';
           };
           
           mediaRecorder.start();
@@ -263,14 +301,11 @@
         } catch (err) {
           console.error(`Failed to start recording: ${err.message}`);
           statusEl.textContent = 'Microphone access denied';
-          statusEl.classList.add('error-state');
+          showErrorState();
           
           // Show restart button when microphone access fails
           restartBtn.style.display = 'inline-block';
           restartBtn.disabled = false;
-          
-          // Hide stop button since recording is not active
-          stopBtn.style.display = 'none';
         }
       }
       
@@ -326,7 +361,7 @@
         stopBtn.disabled = true;
         restartBtn.style.display = 'none';
         restartBtn.disabled = true;
-        statusEl.classList.remove('error-state');
+        hideErrorState();
         
         console.log('Recorder state reset complete');
       }
@@ -348,6 +383,7 @@
       // Event listeners
       stopBtn.addEventListener('click', stopRecording);
       restartBtn.addEventListener('click', restartRecording);
+      closeBtn.addEventListener('click', closeWindow);
       
       // IPC handlers
       if (window.recorderAPI) {
@@ -375,32 +411,60 @@
           console.log('Received transcription result from main process');
           console.log(`Transcription: "${text}"`);
           
-          // Copy to clipboard
-          navigator.clipboard.writeText(text).then(() => {
-            console.log('Text copied to clipboard');
-            statusEl.textContent = 'Copied!';
-            // Notify main process to show notification and close windows
-            if (window.recorderAPI && window.recorderAPI.notifyTranscribed) {
-              window.recorderAPI.notifyTranscribed(text);
-            }
-          }).catch(error => {
-            console.error('Failed to copy to clipboard:', error);
+          // Copy to clipboard using main process API
+          if (window.recorderAPI && window.recorderAPI.copyToClipboard) {
+            console.log('Calling copyToClipboard API...');
+            window.recorderAPI.copyToClipboard(text).then((result) => {
+              console.log('copyToClipboard result:', result);
+              if (result.success) {
+                console.log('Text copied to clipboard');
+                statusEl.textContent = 'Copied!';
+                // Notify main process to show notification and close windows
+                if (window.recorderAPI && window.recorderAPI.notifyTranscribed) {
+                  window.recorderAPI.notifyTranscribed(text);
+                }
+              } else {
+                console.error('Failed to copy to clipboard:', result.error);
+                statusEl.textContent = 'Copy failed';
+                showErrorState();
+                
+                // Show restart button when copy fails
+                restartBtn.style.display = 'inline-block';
+                restartBtn.disabled = false;
+                
+                // Hide stop button since recording is no longer active
+                stopBtn.style.display = 'none';
+              }
+            }).catch(error => {
+              console.error('copyToClipboard promise rejected:', error);
+              statusEl.textContent = 'Copy failed';
+              showErrorState();
+              
+              // Show restart button when copy fails
+              restartBtn.style.display = 'inline-block';
+              restartBtn.disabled = false;
+              
+              // Hide stop button since recording is no longer active
+              stopBtn.style.display = 'none';
+            });
+          } else {
+            console.error('copyToClipboard API not available');
             statusEl.textContent = 'Copy failed';
-            statusEl.classList.add('error-state');
+            showErrorState();
             
-            // Show restart button when copy fails
+            // Show restart button when API is not available
             restartBtn.style.display = 'inline-block';
             restartBtn.disabled = false;
             
             // Hide stop button since recording is no longer active
             stopBtn.style.display = 'none';
-          });
+          }
         });
         
         window.recorderAPI.onError((message) => {
           console.error(`Error from main process: ${message}`);
           statusEl.textContent = 'Recording failed';
-          statusEl.classList.add('error-state');
+          showErrorState();
           
           // Show restart button when recording fails
           restartBtn.style.display = 'inline-block';

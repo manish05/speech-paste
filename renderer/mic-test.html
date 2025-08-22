@@ -352,6 +352,9 @@
       log('Debug microphone test initialized', 'info');
       
       // Check if recorderAPI is available
+      log('Checking for recorderAPI...', 'info');
+      log(`window.recorderAPI: ${typeof window.recorderAPI}`, 'info');
+      
       if (window.recorderAPI) {
         log('recorderAPI is available', 'info');
         log(`Available methods: ${Object.keys(window.recorderAPI).join(', ')}`, 'info');

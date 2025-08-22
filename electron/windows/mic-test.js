@@ -12,13 +12,20 @@ let micTestWindow = null;
 
 /**
  * Creates the microphone test window
- * @returns {BrowserWindow} The created window
+ * @returns {Promise<BrowserWindow>} The created window
  */
-export function createMicTestWindow() {
+export async function createMicTestWindow() {
   if (micTestWindow) {
     micTestWindow.focus();
     return micTestWindow;
   }
+  
+  const preloadPath = path.join(__dirname, '..', 'preload-mic-test.js');
+  log(`Loading mic test preload script from: ${preloadPath}`, 'info');
+  
+  // Check if preload script exists
+  const fs = await import('node:fs');
+  log(`Preload script exists: ${fs.existsSync(preloadPath)}`, 'info');
   
   micTestWindow = new BrowserWindow({
     width: 900,
@@ -31,10 +38,10 @@ export function createMicTestWindow() {
     icon: resolveAsset('assets/icons/icon-256.png'),
     title: 'Microphone Test',
     webPreferences: {
-      preload: path.join(__dirname, 'preload-mic-test.js'),
+      preload: preloadPath,
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true,
+      sandbox: false,
       autoplayPolicy: 'no-user-gesture-required'
     }
   });

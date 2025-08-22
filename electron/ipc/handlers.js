@@ -3,13 +3,17 @@ import { log, showNotification } from '../utils/logger.js';
 import { getApiKey, setApiKey } from '../services/keychain.js';
 import { transcribeWithGemini } from '../services/transcription.js';
 import { getRecorderWindow, closeRecorderWindow } from '../windows/recorder.js';
+import { getMicTestWindow } from '../windows/mic-test.js';
 import { showNotification as showNotificationWindow } from '../windows/notification.js';
 import { recordingStateManager } from '../recording/state-manager.js';
+import { createMicTestWindow } from '../windows/mic-test.js';
 
 /**
  * Sets up all IPC handlers
  */
 export function setupIpcHandlers() {
+  log('Setting up IPC handlers...', 'info');
+  
   // Settings handlers
   ipcMain.handle('settings:getApiKey', async () => {
     log('Getting API key from keychain...');
@@ -31,19 +35,32 @@ export function setupIpcHandlers() {
       const { base64, mimeType } = payload;
       log(`Received audio for transcription: ${base64.length} chars, mimeType: ${mimeType}`, 'info');
       
+      // Get both windows
       const recorderWindow = getRecorderWindow();
+      const micTestWindow = getMicTestWindow();
+      
+      // Send processing state to both windows
       recorderWindow?.webContents.send('recorder:processing');
+      micTestWindow?.webContents.send('recorder:processing');
       
       const text = await transcribeWithGemini(base64, mimeType);
       log(`Transcription result: "${text}"`, 'info');
       
-      // Send the transcribed text back to the renderer
+      // Send the transcribed text back to both windows
       if (recorderWindow) {
-        log('Sending transcribed text to renderer...', 'info');
+        log('Sending transcribed text to recorder window...', 'info');
         recorderWindow.webContents.send('recorder:transcribed', text);
-        log('Transcribed text sent to renderer', 'info');
-      } else {
-        log('Recorder window not found, cannot send transcribed text', 'error');
+        log('Transcribed text sent to recorder window', 'info');
+      }
+      
+      if (micTestWindow) {
+        log('Sending transcribed text to mic test window...', 'info');
+        micTestWindow.webContents.send('recorder:transcribed', text);
+        log('Transcribed text sent to mic test window', 'info');
+      }
+      
+      if (!recorderWindow && !micTestWindow) {
+        log('No windows found to send transcribed text', 'error');
       }
     } catch (error) {
       log(`Transcription error: ${error.message}`, 'error');
@@ -63,14 +80,36 @@ export function setupIpcHandlers() {
         }
       }
       
+      // Send error to both windows
       const recorderWindow = getRecorderWindow();
+      const micTestWindow = getMicTestWindow();
       recorderWindow?.webContents.send('recorder:error', errorMessage);
+      micTestWindow?.webContents.send('recorder:error', errorMessage);
     }
   });
+
+  // Clipboard handler
+  ipcMain.handle('clipboard:writeText', async (_event, text) => {
+    try {
+      clipboard.writeText(text);
+      log(`Text copied to clipboard: "${text}"`, 'info');
+      return { success: true };
+    } catch (error) {
+      log(`Failed to copy text to clipboard: ${error.message}`, 'error');
+      return { success: false, error: error.message };
+    }
+  });
+  
+  log('Clipboard handler registered successfully', 'info');
 
   ipcMain.on('recorder:stopped', () => {
     // Stop recording via centralized state manager
     recordingStateManager.stopRecording();
+  });
+
+  ipcMain.on('recorder:close', () => {
+    log('Closing recorder window via IPC', 'info');
+    closeRecorderWindow();
   });
 
   ipcMain.on('recorder:transcribed-complete', (_event, text) => {
@@ -89,9 +128,8 @@ export function setupIpcHandlers() {
   });
 
   // Debug window handler
-  ipcMain.on('settings:openDebug', () => {
+  ipcMain.on('settings:openDebug', async () => {
     log('Opening debug window...', 'info');
-    const { createMicTestWindow } = require('../windows/mic-test.js');
-    createMicTestWindow();
+    await createMicTestWindow();
   });
 }

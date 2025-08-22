@@ -13,8 +13,15 @@ contextBridge.exposeInMainWorld('recorderAPI', {
   notifyStopped: () => ipcRenderer.send('recorder:stopped'),
   notifyTranscribed: (text) => ipcRenderer.send('recorder:transcribed-complete', text),
   stopRecording: () => ipcRenderer.send('recorder:stopped'),
+  closeWindow: () => ipcRenderer.send('recorder:close'),
+  copyToClipboard: (text) => {
+    console.log('Preload: copyToClipboard called with text:', text);
+    return ipcRenderer.invoke('clipboard:writeText', text);
+  },
   test: () => 'Preload script is working!'
 });
+
+console.log('recorderAPI exposed with clipboard support');
 
 // Forward processing lifecycle events to the renderer page as postMessage
 ipcRenderer.on('recorder:processing', () => {

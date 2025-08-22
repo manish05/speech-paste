@@ -1,9 +1,11 @@
-import { Tray, Menu, nativeImage } from 'electron';
+import { Tray, Menu, nativeImage, BrowserWindow } from 'electron';
 import fs from 'node:fs';
 import { resolveAsset } from '../config.js';
 import { log } from '../utils/logger.js';
-import { startOrStopRecording } from '../recording/index.js';
+import { startOrStopRecording, startRecording } from '../recording/index.js';
 import { recordingStateManager } from '../recording/state-manager.js';
+import { createRecorderWindow, getRecorderWindow } from '../windows/recorder.js';
+import { positionRecorderWindowNearTray } from '../utils/positioning.js';
 
 /** @type {Tray | null} */
 let tray = null;
@@ -74,6 +76,72 @@ export function setTrayStateRecording(recording) {
 }
 
 /**
+ * Shows the context menu at the current mouse position
+ */
+function showContextMenu() {
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: recordingStateManager.isCurrentlyRecording() ? 'Stop Recording' : 'Start Recording',
+      click: () => {
+        console.log(`Tray menu recording toggle clicked - current state: ${recordingStateManager.isCurrentlyRecording() ? 'stopping' : 'starting'}`);
+        startOrStopRecording();
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Settings…',
+      click: () => {
+        console.log('Tray menu settings clicked');
+        onOpenSettings();
+      }
+    },
+    { type: 'separator' },
+    { role: 'quit', label: 'Quit' }
+  ]);
+  
+  // Show the menu at the current mouse position with a window reference
+  const recorderWindow = getRecorderWindow();
+  if (recorderWindow && !recorderWindow.isDestroyed()) {
+    contextMenu.popup(recorderWindow);
+  } else {
+    // Fallback: create a temporary window for the menu
+    const tempWindow = new BrowserWindow({ 
+      show: false, 
+      skipTaskbar: true,
+      alwaysOnTop: true 
+    });
+    contextMenu.popup(tempWindow);
+    tempWindow.close();
+  }
+}
+
+/**
+ * Handles primary click - opens recorder and starts recording
+ */
+async function handlePrimaryClick() {
+  console.log('=== handlePrimaryClick START ===');
+  console.log('Tray primary click - handling recording toggle');
+  
+  // If already recording, just stop it
+  if (recordingStateManager.isCurrentlyRecording()) {
+    console.log('Already recording, stopping recording');
+    startOrStopRecording();
+    console.log('=== handlePrimaryClick END (stopped) ===');
+    return;
+  }
+  
+  // If not recording, start recording (this will handle opening the window)
+  console.log('Not recording, starting recording');
+  try {
+    await startRecording();
+    console.log('startRecording completed successfully');
+  } catch (error) {
+    console.error('Error in startRecording:', error);
+  }
+  console.log('=== handlePrimaryClick END (started) ===');
+}
+
+/**
  * Builds the system tray with menu and event handlers
  * @param {Function} toggleRecording - Callback for toggling recording
  * @param {Function} openSettings - Callback for open settings action
@@ -88,49 +156,56 @@ export function buildTray(toggleRecording, openSettings) {
   // Ignore double-click events to prevent issues with fast clicking
   tray.setIgnoreDoubleClickEvents(true);
   
-  // Single click to start/stop recording
-  tray.on('click', (event) => {
-    // Only handle single clicks, not right-clicks
-    if (event.button === 0) { // Left click
-      console.log('Tray clicked - starting/stopping recording');
-      startOrStopRecording();
+  // Handle all click events manually for precise control
+  tray.on('click', async (event) => {
+    console.log(`Tray click event triggered - button: ${event.button}, type: ${event.type}`);
+    
+    // On macOS, left clicks don't have button property, so treat undefined as primary click
+    // Primary click (left click) - open recorder and start recording
+    if (event.button === 0 || event.button === undefined) {
+      console.log('Primary click detected, calling handlePrimaryClick');
+      await handlePrimaryClick();
+    }
+    // Secondary click (right click) - show context menu
+    else if (event.button === 2) {
+      console.log('Secondary click detected, showing context menu');
+      showContextMenu();
+    }
+    else {
+      console.log(`Unhandled click button: ${event.button}`);
     }
   });
   
-  // Handle right-click for context menu
+  // Also handle right-click specifically (for some systems)
   tray.on('right-click', (event) => {
-    console.log('Tray right-clicked - showing context menu');
-    // Context menu will be shown automatically
+    console.log('Tray right-click event triggered');
+    showContextMenu();
   });
   
+  // Add debugging for other potential events
+  tray.on('double-click', (event) => {
+    console.log('Tray double-click event triggered');
+  });
+  
+  tray.on('mouse-enter', (event) => {
+    console.log('Tray mouse-enter event triggered');
+  });
+  
+  tray.on('mouse-leave', (event) => {
+    console.log('Tray mouse-leave event triggered');
+  });
+  
+  // Don't set a default context menu - we'll show it manually
   updateTrayMenu(false);
 }
 
 /**
  * Updates the tray context menu based on recording state
+ * Note: This function is kept for compatibility but the menu is now shown manually
  */
 function updateTrayMenu() {
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: recordingStateManager.isCurrentlyRecording() ? 'Stop Recording' : 'Start Recording',
-      click: () => {
-        console.log(`Tray menu recording toggle clicked - current state: ${recordingStateManager.isCurrentlyRecording() ? 'stopping' : 'starting'}`);
-        startOrStopRecording();
-      }
-    },
-    { type: 'separator' },
- 
-    {
-      label: 'Settings…',
-      click: () => {
-        console.log('Tray menu settings clicked');
-        onOpenSettings();
-      }
-    },
-    { type: 'separator' },
-    { role: 'quit', label: 'Quit' }
-  ]);
-  tray.setContextMenu(contextMenu);
+  // The menu is now built and shown on-demand in showContextMenu()
+  // This function is kept for any future use but doesn't set a default context menu
 }
 
 /**

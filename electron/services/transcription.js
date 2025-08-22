@@ -43,7 +43,7 @@ export async function transcribeWithGemini(base64Audio, mimeType) {
     
     // Use the correct format for Gemini API with audio data
     const result = await model.generateContent([
-      "Transcribe the spoken audio into plain text. Provide only the spoken words without adding any extra commentary, punctuation corrections, or formatting.",
+      "Transcribe the spoken audio into plain text. Provide only the spoken words without adding any extra commentary, punctuation corrections, or formatting. If no audio is audible or if there is only silence, print \"\" (empty string).",
       {
         inlineData: {
           data: base64Audio,
