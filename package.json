@@ -1,19 +1,72 @@
 {
   "name": "speech-paste",
+  "version": "1.0.0",
+  "description": "A speech-to-text application that transcribes audio and pastes it to the clipboard",
+  "author": "Speech Paste Team",
   "productName": "Speech Paste",
   "module": "index.ts",
   "main": "electron/main.js",
   "type": "module",
   "private": true,
-  "icon": "assets/icons/icon-256.png",
+  "icon": "assets/icons/icon-512.png",
   "scripts": {
     "dev": "bunx electron .",
     "start": "bunx electron .",
-    "icons": "bun run scripts/generate-icons.ts"
+    "icons": "bun run scripts/generate-icons.ts",
+    "dmg-bg": "bun run scripts/create-dmg-background.js",
+    "build": "bunx electron-builder",
+    "build:mac": "bunx electron-builder --mac",
+    "build:mac-universal": "bunx electron-builder --mac --universal",
+    "dist": "bunx electron-builder --publish=never",
+    "dist:mac": "bunx electron-builder --mac --publish=never",
+    "dist:mac-universal": "bunx electron-builder --mac --universal --publish=never"
+  },
+  "build": {
+    "appId": "com.speechpaste.app",
+    "productName": "Speech Paste",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "renderer/**/*",
+      "assets/**/*",
+      "node_modules/**/*",
+      "!node_modules/.cache/**/*",
+      "!**/*.map"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        },
+        {
+          "target": "zip",
+          "arch": ["universal"]
+        }
+      ],
+      "icon": "assets/icons/icon-512.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "title": "Speech Paste",
+      "icon": "assets/icons/icon-512.png",
+      "background": "assets/dmg-background.png",
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    }
   },
   "devDependencies": {
     "@types/bun": "latest",
     "electron": "^37.3.1",
+    "electron-builder": "^25.1.4",
     "sharp": "^0.34.3"
   },
   "peerDependencies": {
