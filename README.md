@@ -14,13 +14,21 @@ A macOS mini app that transcribes audio to text and automatically copies it to y
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### For Normal Users (Try It Now!)
+📦 **Ready to use app available!** See [TRY_IT.md](TRY_IT.md) for simple 3-step instructions.
 
+**Download the app from the `dist/` folder:**
+- `Speech Paste-1.0.0-universal.dmg` - Easy installer
+- `Speech Paste-1.0.0-universal-mac.zip` - ZIP archive
+
+### For Developers
+
+#### Prerequisites
 - macOS 10.15 or later
 - [Bun](https://bun.sh) package manager
 - Google Gemini API key
 
-### Installation
+#### Installation
 
 1. **Clone the repository**
    ```bash
