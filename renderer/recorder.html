@@ -141,6 +141,27 @@
         transform: scale(1.1);
       }
       
+      .permission-indicator {
+        font-size: 12px;
+        opacity: 0.7;
+        margin-top: 8px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+      
+      .permission-granted {
+        color: #4CAF50;
+      }
+      
+      .permission-denied {
+        color: #f44336;
+      }
+      
+      .permission-prompt {
+        color: #ff9800;
+      }
+      
 
     </style>
   </head>
@@ -148,6 +169,7 @@
     <div class="widget" id="widget">
       <button class="close-btn" id="closeBtn">×</button>
       <div class="status" id="status">Ready</div>
+      <div class="permission-indicator" id="permissionIndicator"></div>
       <button class="stop-btn" id="stopBtn" disabled>Stop Recording</button>
       <button class="restart-btn" id="restartBtn" disabled>Restart Recording</button>
     </div>
@@ -158,6 +180,7 @@
       const stopBtn = document.getElementById('stopBtn');
       const restartBtn = document.getElementById('restartBtn');
       const closeBtn = document.getElementById('closeBtn');
+      const permissionIndicator = document.getElementById('permissionIndicator');
       
       // Recording state
       let mediaRecorder = null;
@@ -165,6 +188,7 @@
       let chunks = [];
       let mimeType = null;
       let isRecording = false;
+      let microphonePermissionState = 'unknown';
       
       // Initialize
       console.log('Minimal recorder widget initialized');
@@ -176,6 +200,46 @@
         console.error('recorderAPI is not available');
       }
       
+      // Check microphone permission state on page load
+      async function checkMicrophonePermission() {
+        try {
+          if (navigator.permissions && navigator.permissions.query) {
+            const permissions = await navigator.permissions.query({ name: 'microphone' });
+            microphonePermissionState = permissions.state;
+            console.log('Initial microphone permission state:', microphonePermissionState);
+            
+            // Listen for permission changes
+            permissions.onchange = () => {
+              const oldState = microphonePermissionState;
+              microphonePermissionState = permissions.state;
+              console.log(`Microphone permission state changed from ${oldState} to: ${microphonePermissionState}`);
+              
+              // Update permission indicator
+              updatePermissionIndicator();
+              
+              // Update UI if permission was granted
+              if (microphonePermissionState === 'granted' && oldState !== 'granted') {
+                console.log('Microphone permission granted, ready to record');
+                statusEl.textContent = 'Ready';
+                hideErrorState();
+              } else if (microphonePermissionState === 'denied') {
+                console.log('Microphone permission denied');
+                statusEl.textContent = 'Microphone access denied';
+                showErrorState();
+              }
+            };
+          }
+                  } catch (error) {
+            console.log('Could not check microphone permissions:', error.message);
+            microphonePermissionState = 'unknown';
+          } finally {
+            updatePermissionIndicator();
+          }
+      }
+      
+      // Check permissions when page loads
+      checkMicrophonePermission();
+      
       function showErrorState() {
         statusEl.classList.add('error-state');
         closeBtn.style.display = 'flex';
@@ -185,6 +249,32 @@
       function hideErrorState() {
         statusEl.classList.remove('error-state');
         closeBtn.style.display = 'none';
+      }
+      
+      function updatePermissionIndicator() {
+        if (!permissionIndicator) return;
+        
+        const state = microphonePermissionState;
+        permissionIndicator.className = 'permission-indicator';
+        
+        switch (state) {
+          case 'granted':
+            permissionIndicator.textContent = '✓ Microphone access granted';
+            permissionIndicator.classList.add('permission-granted');
+            permissionIndicator.style.display = 'none';
+            break;
+          case 'denied':
+            permissionIndicator.textContent = '✗ Microphone access denied';
+            permissionIndicator.classList.add('permission-denied');
+            break;
+          case 'prompt':
+            permissionIndicator.textContent = '? Microphone access needed';
+            permissionIndicator.classList.add('permission-prompt');
+            break;
+          default:
+            permissionIndicator.textContent = '? Checking microphone access...';
+            permissionIndicator.classList.add('permission-prompt');
+        }
       }
       
       function closeWindow() {
@@ -209,7 +299,31 @@
           restartBtn.disabled = true;
           stopBtn.style.display = 'inline-block';
           
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          // Check microphone permission state
+          console.log('Current microphone permission state:', microphonePermissionState);
+          
+          if (microphonePermissionState === 'denied') {
+            throw new Error('Microphone access denied');
+          }
+          
+          // If permission is granted, try to get stream without prompting
+          if (microphonePermissionState === 'granted') {
+            console.log('Microphone permission already granted, getting stream...');
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          } else {
+            // Permission is 'prompt' or 'unknown', request access
+            console.log('Requesting microphone access...');
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+                         // Update permission state after successful request
+             if (navigator.permissions && navigator.permissions.query) {
+               const permissions = await navigator.permissions.query({ name: 'microphone' });
+               microphonePermissionState = permissions.state;
+               console.log('Updated microphone permission state:', microphonePermissionState);
+               updatePermissionIndicator();
+             }
+          }
+          
           console.log('Microphone access granted');
           
           mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
@@ -300,7 +414,17 @@
           
         } catch (err) {
           console.error(`Failed to start recording: ${err.message}`);
-          statusEl.textContent = 'Microphone access denied';
+          
+          if (err.name === 'NotAllowedError' || err.message.includes('denied')) {
+            statusEl.textContent = 'Microphone access denied';
+            microphonePermissionState = 'denied';
+          } else if (err.name === 'NotFoundError') {
+            statusEl.textContent = 'No microphone found';
+          } else {
+            statusEl.textContent = 'Recording failed';
+          }
+          
+          updatePermissionIndicator();
           showErrorState();
           
           // Show restart button when microphone access fails
@@ -356,6 +480,9 @@
         mimeType = null;
         isRecording = false;
         
+        // Re-check microphone permission state
+        checkMicrophonePermission();
+        
         // Reset UI
         statusEl.textContent = 'Ready';
         stopBtn.disabled = true;
@@ -378,11 +505,44 @@
         }, 500);
       }
       
+      // Function to handle manual permission grant attempts
+      async function requestMicrophonePermission() {
+        try {
+          console.log('Manually requesting microphone permission...');
+          const testStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          testStream.getTracks().forEach(track => track.stop());
+          
+                     // Update permission state
+           if (navigator.permissions && navigator.permissions.query) {
+             const permissions = await navigator.permissions.query({ name: 'microphone' });
+             microphonePermissionState = permissions.state;
+             console.log('Permission state after manual request:', microphonePermissionState);
+             updatePermissionIndicator();
+           }
+          
+          return true;
+        } catch (error) {
+          console.error('Manual permission request failed:', error);
+          return false;
+        }
+      }
+      
 
       
       // Event listeners
       stopBtn.addEventListener('click', stopRecording);
-      restartBtn.addEventListener('click', restartRecording);
+      restartBtn.addEventListener('click', async () => {
+        // If permission is denied, try to request it first
+        if (microphonePermissionState === 'denied') {
+          console.log('Permission denied, attempting to request permission...');
+          const granted = await requestMicrophonePermission();
+          if (!granted) {
+            console.log('Permission request failed, cannot restart recording');
+            return;
+          }
+        }
+        restartRecording();
+      });
       closeBtn.addEventListener('click', closeWindow);
       
       // IPC handlers

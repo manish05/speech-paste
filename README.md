@@ -15,11 +15,35 @@ A macOS mini app that transcribes audio to text and automatically copies it to y
 ## 🚀 Quick Start
 
 ### For Normal Users (Try It Now!)
-📦 **Ready to use app available!** See [TRY_IT.md](TRY_IT.md) for simple 3-step instructions.
+📦 **Ready to use app available!** Download from the [Releases](https://github.com/manish05/speech-paste/releases) page.
 
-**Download the app from the `dist/` folder:**
-- `Speech Paste-1.0.0-universal.dmg` - Easy installer
-- `Speech Paste-1.0.0-universal-mac.zip` - ZIP archive
+**Available Downloads:**
+- `Speech Paste-1.0.0-universal.dmg` - Easy installer (200MB)
+- `Speech Paste-1.0.0-universal-mac.zip` - ZIP archive (194MB)
+
+#### 🎯 Simple 3-Step Setup:
+
+1. **Download & Install**
+   - Download the DMG file from Releases
+   - Double-click to mount, drag to Applications folder
+   - Right-click the app and select "Open" (first time only)
+
+2. **Get Free API Key**
+   - Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Sign in and click "Create API Key"
+   - Copy the key (looks like: `AIzaSyC...`)
+
+3. **Configure & Use**
+   - Click the microphone icon in your menu bar
+   - Go to Settings and paste your API key
+   - Press `Cmd+Shift+R` to start recording
+   - Speak, press shortcut again to stop
+   - Paste anywhere with `Cmd+V`
+
+#### 🛠️ Troubleshooting:
+- **"App is damaged"**: Run `xattr -cr "/Applications/Speech Paste.app"` in Terminal
+- **Microphone issues**: Check System Preferences > Security & Privacy > Microphone
+- **Shortcut not working**: Grant accessibility permissions in System Preferences
 
 ### For Developers
 
