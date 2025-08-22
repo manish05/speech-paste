@@ -1,0 +1,516 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Settings</title>
+    <style>
+      body { 
+        margin: 0; 
+        font-family: -apple-system, system-ui, sans-serif; 
+        background: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-app-region: drag;
+        height: 100vh;
+        overflow: hidden;
+      }
+      
+      .wrap { 
+        display: flex; 
+        flex-direction: column;
+        align-items: center; 
+        justify-content: center; 
+        height: 100vh;
+        padding: 16px 0;
+        box-sizing: border-box;
+        -webkit-app-region: drag;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      
+      .container {
+        background: rgba(0,0,0,0.85);
+        color: white;
+        padding: 24px;
+        border-radius: 16px;
+        font-size: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.1);
+        width: 100%;
+        max-width: 400px;
+        position: relative;
+        -webkit-app-region: drag;
+        margin: 0;
+        min-height: fit-content;
+      }
+      
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        flex-shrink: 0;
+      }
+      
+      .title {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0;
+      }
+      
+      .close-btn {
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        position: relative;
+        -webkit-app-region: no-drag;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: background-color 0.2s ease;
+      }
+      
+      .close-btn:hover {
+        background: rgba(255,255,255,0.1);
+      }
+      
+      .close-btn::before,
+      .close-btn::after {
+        content: '';
+        position: absolute;
+        width: 12px;
+        height: 2px;
+        background: #fff;
+        border-radius: 1px;
+      }
+      
+      .close-btn::before {
+        transform: rotate(45deg);
+      }
+      
+      .close-btn::after {
+        transform: rotate(-45deg);
+      }
+      
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      
+      .label {
+        font-weight: 500;
+        color: #e2e8f0;
+        font-size: 13px;
+      }
+      
+      .input-wrapper {
+        position: relative;
+        -webkit-app-region: no-drag;
+      }
+      
+      .input {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 13px;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 8px;
+        background: rgba(255,255,255,0.1);
+        color: white;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        -webkit-app-region: no-drag;
+      }
+      
+      .input:focus {
+        outline: none;
+        border-color: #667eea;
+        background: rgba(255,255,255,0.15);
+      }
+      
+      .input::placeholder {
+        color: rgba(255,255,255,0.5);
+      }
+      
+      .toggle-password {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: rgba(255,255,255,0.6);
+        font-size: 14px;
+        padding: 4px;
+        border-radius: 4px;
+        transition: color 0.2s ease;
+        -webkit-app-region: no-drag;
+      }
+      
+      .toggle-password:hover {
+        color: white;
+      }
+      
+      .key-info {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: rgba(255,255,255,0.6);
+      }
+      
+      .key-status {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.3);
+      }
+      
+      .key-status.valid {
+        background: #48bb78;
+      }
+      
+      .key-status.invalid {
+        background: #f56565;
+      }
+      
+      .clear-btn {
+        background: none;
+        border: none;
+        color: #f56565;
+        cursor: pointer;
+        font-size: 11px;
+        text-decoration: underline;
+        -webkit-app-region: no-drag;
+        padding: 0;
+        margin: 0;
+      }
+      
+      .clear-btn:hover {
+        color: #fc8181;
+      }
+      
+      .save-btn {
+        padding: 12px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        background: #dc2626;
+        border: 2px solid #dc2626;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        -webkit-app-region: no-drag;
+        margin-top: 8px;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+      }
+      
+      .save-btn:hover {
+        background: #b91c1c;
+        border-color: #b91c1c;
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+        transform: translateY(-1px);
+      }
+      
+      .save-btn:active {
+        background: #991b1b;
+        border-color: #991b1b;
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+      }
+      
+      .save-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+      
+      .status {
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        margin-top: 8px;
+        flex-shrink: 0;
+      }
+      
+      .status.show {
+        opacity: 1;
+      }
+      
+      .status.success {
+        background: rgba(72, 187, 120, 0.2);
+        color: #9ae6b4;
+        border: 1px solid rgba(72, 187, 120, 0.3);
+      }
+      
+      .status.error {
+        background: rgba(245, 101, 101, 0.2);
+        color: #feb2b2;
+        border: 1px solid rgba(245, 101, 101, 0.3);
+      }
+      
+      .footer {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        text-align: center;
+        font-size: 11px;
+        color: rgba(255,255,255,0.5);
+        line-height: 1.4;
+        flex-shrink: 0;
+      }
+      
+      .footer strong {
+        color: rgba(255,255,255,0.7);
+      }
+      
+      .app-info {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      
+      .app-icon {
+        width: 16px;
+        height: 16px;
+        background: #667eea;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: white;
+        font-weight: bold;
+      }
+      
+      .debug-btn {
+        margin-top: 12px;
+        padding: 6px 12px;
+        background: #000000;
+        color: #ffffff;
+        border: 1px solid #333333;
+        border-radius: 4px;
+        font-size: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        -webkit-app-region: no-drag;
+      }
+      
+      .debug-btn:hover {
+        background: #333333;
+        border-color: #666666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="container">
+        <div class="header">
+          <h2 class="title">Settings</h2>
+          <div class="close-btn" id="closeBtn" title="Close"></div>
+        </div>
+        
+        <form id="settingsForm">
+          <div class="form-group">
+            <label class="label" for="apiKey">Gemini API Key</label>
+            <div class="input-wrapper">
+              <input 
+                id="apiKey" 
+                type="password" 
+                class="input" 
+                placeholder="AIzaSyC..." 
+                autocomplete="off"
+              />
+              <button type="button" class="toggle-password" id="togglePassword">👁️</button>
+            </div>
+            <div class="key-info">
+              <div class="key-status" id="keyStatus"></div>
+              <span id="keyInfo">No API key configured</span>
+              <button type="button" class="clear-btn" id="clearKey" style="display: none;">Clear</button>
+            </div>
+          </div>
+          
+          <button type="submit" class="save-btn" id="saveBtn">
+            <span id="saveText">Save API Key</span>
+          </button>
+        </form>
+        
+        <div class="status" id="status"></div>
+        
+        <div class="footer">
+          <div class="app-info">
+            <div class="app-icon">SP</div>
+            <strong>Speech Paste</strong>
+          </div>
+          <div>Voice-to-text transcription powered by Gemini AI</div>
+          <div>Your API key is stored securely in your system keychain</div>
+          <button id="debugBtn" class="debug-btn">Debug</button>
+        </div>
+      </div>
+    </div>
+    
+    <script type="module">
+      const form = document.getElementById('settingsForm');
+      const input = document.getElementById('apiKey');
+      const saveBtn = document.getElementById('saveBtn');
+      const saveText = document.getElementById('saveText');
+      const togglePassword = document.getElementById('togglePassword');
+      const status = document.getElementById('status');
+      const keyStatus = document.getElementById('keyStatus');
+      const keyInfo = document.getElementById('keyInfo');
+      const clearKey = document.getElementById('clearKey');
+      const debugBtn = document.getElementById('debugBtn');
+      const closeBtn = document.getElementById('closeBtn');
+      
+      let isPasswordVisible = false;
+      
+      // Close window
+      closeBtn.addEventListener('click', () => {
+        window.close();
+      });
+      
+      // Toggle password visibility
+      togglePassword.addEventListener('click', () => {
+        isPasswordVisible = !isPasswordVisible;
+        input.type = isPasswordVisible ? 'text' : 'password';
+        togglePassword.textContent = isPasswordVisible ? '🙈' : '👁️';
+      });
+      
+      // Update key status display
+      function updateKeyStatus(key) {
+        if (key && key.length > 0) {
+          keyStatus.className = 'key-status valid';
+          keyInfo.textContent = `API key configured (${key.substring(0, 8)}...)`;
+          clearKey.style.display = 'inline';
+        } else {
+          keyStatus.className = 'key-status';
+          keyInfo.textContent = 'No API key configured';
+          clearKey.style.display = 'none';
+        }
+      }
+      
+      // Show status message
+      function showStatus(message, type = 'success') {
+        status.textContent = message;
+        status.className = `status ${type} show`;
+        setTimeout(() => {
+          status.classList.remove('show');
+        }, 3000);
+      }
+      
+      // Load current API key
+      async function load() {
+        try {
+          const current = await window.settingsAPI.getApiKey();
+          input.value = current || '';
+          updateKeyStatus(current);
+        } catch (error) {
+          console.error('Failed to load API key:', error);
+          showStatus('Failed to load API key', 'error');
+        }
+      }
+      
+      // Save API key
+      async function save() {
+        const key = input.value.trim();
+        
+        // Show loading state
+        saveBtn.disabled = true;
+        saveText.textContent = 'Saving...';
+        
+        try {
+          if (!window.settingsAPI) {
+            throw new Error('Settings API not available');
+          }
+          
+          const ok = await window.settingsAPI.setApiKey(key);
+          
+          if (ok) {
+            showStatus('API key saved successfully!', 'success');
+            updateKeyStatus(key);
+          } else {
+            showStatus('Failed to save API key', 'error');
+          }
+        } catch (error) {
+          console.error('Save error:', error);
+          const errorMessage = `Save Error: ${error.message || error}`;
+          showStatus(errorMessage, 'error');
+        } finally {
+          saveBtn.disabled = false;
+          saveText.textContent = 'Save API Key';
+        }
+      }
+      
+      // Clear API key
+      clearKey.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to clear your API key?')) {
+          try {
+            const ok = await window.settingsAPI.setApiKey('');
+            if (ok) {
+              input.value = '';
+              updateKeyStatus('');
+              showStatus('API key cleared', 'success');
+            } else {
+              showStatus('Failed to clear API key', 'error');
+            }
+          } catch (error) {
+            console.error('Clear error:', error);
+            showStatus('Failed to clear API key', 'error');
+          }
+        }
+      });
+      
+      // Form submission
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await save();
+      });
+      
+      // Input validation
+      input.addEventListener('input', () => {
+        const key = input.value.trim();
+        if (key.length > 0) {
+          saveBtn.disabled = false;
+        } else {
+          saveBtn.disabled = true;
+        }
+      });
+      
+      // Check if settingsAPI is available
+      if (!window.settingsAPI) {
+        console.error('Settings API is not available!');
+        showStatus('Error: Settings API not loaded. Please restart the app.', 'error');
+      }
+      
+      // Debug button handler
+      debugBtn.addEventListener('click', () => {
+        // Send message to main process to open mic test window
+        if (window.settingsAPI && window.settingsAPI.openDebug) {
+          window.settingsAPI.openDebug();
+        } else {
+          console.log('Debug button clicked - debug API not available');
+        }
+      });
+      
+      // Initialize
+      load();
+    </script>
+  </body>
+</html>

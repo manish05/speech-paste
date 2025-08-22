@@ -1,0 +1,781 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Debug - Microphone Test</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body { 
+        font-family: -apple-system, system-ui, sans-serif; 
+        background: #000000;
+        color: #ffffff;
+        user-select: none;
+        -webkit-user-select: none;
+        height: 100vh;
+        overflow: hidden;
+      }
+      
+      .container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+        border-bottom: 1px solid #333;
+        padding-bottom: 20px;
+      }
+      
+      .title {
+        font-size: 28px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #00ff00;
+      }
+      
+      .subtitle {
+        font-size: 14px;
+        opacity: 0.7;
+        color: #888;
+      }
+      
+      .status {
+        font-size: 16px;
+        opacity: 0.9;
+        margin-bottom: 20px;
+        padding: 10px;
+        background: #111;
+        border-radius: 8px;
+        border: 1px solid #333;
+      }
+      
+      .controls {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+      }
+      
+      .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 100px;
+      }
+      
+      .btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      
+      .btn-start {
+        background: #00ff00;
+        color: #000;
+      }
+      
+      .btn-start:hover:not(:disabled) {
+        background: #00cc00;
+        transform: translateY(-1px);
+      }
+      
+      .btn-stop {
+        background: #ff0000;
+        color: #fff;
+      }
+      
+      .btn-stop:hover:not(:disabled) {
+        background: #cc0000;
+        transform: translateY(-1px);
+      }
+      
+      .btn-play {
+        background: #0066ff;
+        color: #fff;
+      }
+      
+      .btn-play:hover:not(:disabled) {
+        background: #0052cc;
+        transform: translateY(-1px);
+      }
+      
+      .btn-convert {
+        background: #9900ff;
+        color: #fff;
+      }
+      
+      .btn-convert:hover:not(:disabled) {
+        background: #7a00cc;
+        transform: translateY(-1px);
+      }
+      
+      .btn-send {
+        background: #ff6600;
+        color: #fff;
+      }
+      
+      .btn-send:hover:not(:disabled) {
+        background: #cc5200;
+        transform: translateY(-1px);
+      }
+      
+      .btn-copy {
+        background: #00ccff;
+        color: #000;
+      }
+      
+      .btn-copy:hover:not(:disabled) {
+        background: #00a3cc;
+        transform: translateY(-1px);
+      }
+      
+      .btn-status {
+        background: #00ff00;
+        color: #000;
+      }
+      
+      .btn-status:hover:not(:disabled) {
+        background: #00cc00;
+        transform: translateY(-1px);
+      }
+      
+      .visualization {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 80px;
+        margin-bottom: 30px;
+        background: #111;
+        border-radius: 8px;
+        padding: 20px;
+        border: 1px solid #333;
+      }
+      
+      .audio-bars {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        height: 40px;
+      }
+      
+      .audio-bar {
+        width: 4px;
+        background: #00ff00;
+        border-radius: 2px;
+        transition: height 0.1s ease;
+      }
+      
+      .recording .audio-bar {
+        animation: audioWave 0.8s ease-in-out infinite;
+      }
+      
+      .audio-bar:nth-child(1) { animation-delay: 0s; }
+      .audio-bar:nth-child(2) { animation-delay: 0.1s; }
+      .audio-bar:nth-child(3) { animation-delay: 0.2s; }
+      .audio-bar:nth-child(4) { animation-delay: 0.3s; }
+      .audio-bar:nth-child(5) { animation-delay: 0.4s; }
+      .audio-bar:nth-child(6) { animation-delay: 0.5s; }
+      .audio-bar:nth-child(7) { animation-delay: 0.6s; }
+      .audio-bar:nth-child(8) { animation-delay: 0.7s; }
+      
+      @keyframes audioWave {
+        0%, 100% { height: 8px; }
+        50% { height: 40px; }
+      }
+      
+      .debug-section {
+        flex: 1;
+        background: #111;
+        border-radius: 8px;
+        padding: 20px;
+        overflow-y: auto;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 12px;
+        line-height: 1.4;
+        border: 1px solid #333;
+      }
+      
+      .debug-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #00ff00;
+      }
+      
+      .debug-log {
+        margin-bottom: 8px;
+        padding: 8px;
+        background: #222;
+        border-radius: 4px;
+        border-left: 3px solid #00ff00;
+      }
+      
+      .debug-error {
+        border-left-color: #ff0000;
+        background: #330000;
+      }
+      
+      .debug-warn {
+        border-left-color: #ff6600;
+        background: #331a00;
+      }
+      
+      .debug-info {
+        border-left-color: #0066ff;
+        background: #001a33;
+      }
+      
+      .recording-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background: #ff0000;
+        border-radius: 50%;
+        margin-right: 8px;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+      
+      .recording .recording-indicator {
+        display: inline-block;
+      }
+      
+      .recording .status {
+        color: #ff0000;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="title">
+          <span class="recording-indicator" id="recordingIndicator" style="display: none;"></span>
+          Debug - Microphone Test
+        </div>
+        <div class="subtitle">Comprehensive audio recording and transcription testing</div>
+      </div>
+      
+      <div class="status" id="status">Ready to record</div>
+      
+      <div class="visualization" id="visualization">
+        <div class="audio-bars" id="audioBars">
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+        </div>
+      </div>
+      
+      <div class="controls">
+        <button class="btn btn-start" id="startBtn">Start Recording</button>
+        <button class="btn btn-stop" id="stopBtn" disabled>Stop Recording</button>
+        <button class="btn btn-play" id="playBtn" disabled>Play Recording</button>
+        <button class="btn btn-convert" id="convertBtn" disabled>Convert to Base64</button>
+        <button class="btn btn-send" id="sendBtn" disabled>Send to Gemini</button>
+        <button class="btn btn-copy" id="copyBtn" disabled>Copy to Clipboard</button>
+        <button class="btn btn-status" id="statusBtn">Check Status</button>
+        <button class="btn btn-status" id="simulateBtn">Simulate Transcription</button>
+      </div>
+      
+      <div class="debug-section">
+        <div class="debug-title">Debug Logs</div>
+        <div id="debugLogs"></div>
+      </div>
+    </div>
+    
+    <script type="module">
+      // Debug logging function
+      function log(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const logElement = document.createElement('div');
+        logElement.className = `debug-log debug-${type}`;
+        logElement.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+        
+        const debugLogs = document.getElementById('debugLogs');
+        debugLogs.appendChild(logElement);
+        debugLogs.scrollTop = debugLogs.scrollHeight;
+        
+        console.log(`[${type.toUpperCase()}] ${message}`);
+      }
+      
+      // UI elements
+      const statusEl = document.getElementById('status');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const playBtn = document.getElementById('playBtn');
+      const convertBtn = document.getElementById('convertBtn');
+      const sendBtn = document.getElementById('sendBtn');
+      const copyBtn = document.getElementById('copyBtn');
+      const statusBtn = document.getElementById('statusBtn');
+      const simulateBtn = document.getElementById('simulateBtn');
+      const recordingIndicator = document.getElementById('recordingIndicator');
+      const audioBars = document.getElementById('audioBars');
+      const body = document.body;
+      
+      // Recording state
+      let mediaRecorder = null;
+      let stream = null;
+      let chunks = [];
+      let audioContext = null;
+      let analyser = null;
+      let dataArray = null;
+      let animationId = null;
+      let isRecording = false;
+      let base64Data = null;
+      let mimeType = null;
+      let transcribedText = null;
+      
+      // Initialize
+      log('Debug microphone test initialized', 'info');
+      
+      // Check if recorderAPI is available
+      if (window.recorderAPI) {
+        log('recorderAPI is available', 'info');
+        log(`Available methods: ${Object.keys(window.recorderAPI).join(', ')}`, 'info');
+        
+        // Test the preload script
+        if (window.recorderAPI.test) {
+          const testResult = window.recorderAPI.test();
+          log(`Preload test result: ${testResult}`, 'info');
+        }
+      } else {
+        log('recorderAPI is NOT available - preload script may not have loaded', 'error');
+        log('Creating fallback recorderAPI...', 'warn');
+        
+        // Create a fallback API that logs errors
+        window.recorderAPI = {
+          onStart: (callback) => log('Fallback: onStart called', 'warn'),
+          onStop: (callback) => log('Fallback: onStop called', 'warn'),
+          onProcessing: (callback) => log('Fallback: onProcessing called', 'warn'),
+          onTranscribed: (callback) => log('Fallback: onTranscribed called', 'warn'),
+          onError: (callback) => log('Fallback: onError called', 'warn'),
+          sendAudio: (base64, mimeType) => {
+            log('Fallback: sendAudio called - preload script not working', 'error');
+            log(`Would send: ${base64.length} chars, mimeType: ${mimeType}`, 'info');
+          },
+          notifyStopped: () => log('Fallback: notifyStopped called', 'warn')
+        };
+      }
+      
+      async function startRecording() {
+        try {
+          log('Starting recording...', 'info');
+          statusEl.textContent = 'Requesting microphone access...';
+          
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          log('Microphone access granted', 'info');
+          
+          mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'
+            : 'audio/webm';
+          
+          mediaRecorder = new MediaRecorder(stream, { mimeType });
+          chunks = [];
+          base64Data = null;
+          transcribedText = null;
+          
+          // Set up audio visualization
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const source = audioContext.createMediaStreamSource(stream);
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+          dataArray = new Uint8Array(analyser.frequencyBinCount);
+          
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+              chunks.push(e.data);
+              log(`Audio chunk received: ${e.data.size} bytes`, 'info');
+            }
+          };
+          
+          mediaRecorder.onstart = () => {
+            log('MediaRecorder started', 'info');
+            isRecording = true;
+            updateUI();
+            startAudioVisualization();
+          };
+          
+          mediaRecorder.onstop = async () => {
+            log('MediaRecorder stopped', 'info');
+            stopAudioVisualization();
+            
+            try {
+              if (chunks.length > 0) {
+                const blob = new Blob(chunks, { type: mimeType });
+                log(`Audio blob created: ${blob.size} bytes`, 'info');
+                
+                // Just play the recording instead of sending for transcription
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+                
+                audio.onplay = () => {
+                  log('Playing recording...', 'info');
+                  statusEl.textContent = 'Playing recording...';
+                };
+                audio.onended = () => {
+                  log('Playback finished', 'info');
+                  statusEl.textContent = 'Recording playback finished';
+                  URL.revokeObjectURL(url);
+                };
+                audio.onerror = (e) => {
+                  log(`Playback error: ${e.message}`, 'error');
+                  statusEl.textContent = 'Error playing recording';
+                };
+                
+                audio.play();
+                
+                // Enable convert and send buttons after recording
+                updateUI();
+              } else {
+                log('No audio chunks available', 'warn');
+                statusEl.textContent = 'No audio recorded';
+              }
+              // Safely call notifyStopped if API is available
+              if (window.recorderAPI && window.recorderAPI.notifyStopped) {
+                window.recorderAPI.notifyStopped();
+              }
+            } catch (error) {
+              log(`Error processing audio: ${error.message}`, 'error');
+              // Safely call notifyStopped if API is available
+              if (window.recorderAPI && window.recorderAPI.notifyStopped) {
+                window.recorderAPI.notifyStopped();
+              }
+              statusEl.textContent = 'Error processing audio';
+            }
+          };
+          
+          mediaRecorder.onerror = (event) => {
+            log(`MediaRecorder error: ${event.error}`, 'error');
+          };
+          
+          mediaRecorder.start();
+          statusEl.textContent = 'Recording...';
+          
+        } catch (err) {
+          log(`Failed to start recording: ${err.message}`, 'error');
+          statusEl.textContent = 'Microphone access denied';
+        }
+      }
+      
+      function stopRecording() {
+        log('Stopping recording...', 'info');
+        
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+        
+        if (stream) {
+          stream.getTracks().forEach(track => {
+            track.stop();
+            log(`Audio track stopped: ${track.kind}`, 'info');
+          });
+          stream = null;
+        }
+        
+        isRecording = false;
+        updateUI();
+        stopAudioVisualization();
+        statusEl.textContent = 'Recording stopped';
+      }
+      
+      function playRecording() {
+        log(`Play recording called - chunks length: ${chunks.length}`, 'info');
+        
+        if (chunks.length === 0) {
+          log('No audio to play', 'warn');
+          statusEl.textContent = 'No audio to play';
+          return;
+        }
+        
+        try {
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          log(`Created blob for playback: ${blob.size} bytes`, 'info');
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          
+          audio.onplay = () => {
+            log('Playing recording...', 'info');
+            statusEl.textContent = 'Playing recording...';
+          };
+          audio.onended = () => {
+            log('Playback finished', 'info');
+            statusEl.textContent = 'Playback finished';
+            URL.revokeObjectURL(url);
+          };
+          audio.onerror = (e) => {
+            log(`Playback error: ${e.message}`, 'error');
+            statusEl.textContent = 'Playback error';
+          };
+          
+          audio.play().catch(error => {
+            log(`Audio play failed: ${error.message}`, 'error');
+            statusEl.textContent = 'Failed to play audio';
+          });
+        } catch (error) {
+          log(`Failed to play recording: ${error.message}`, 'error');
+          statusEl.textContent = 'Failed to play recording';
+        }
+      }
+      
+      async function convertToBase64() {
+        log('Converting audio to base64...', 'info');
+        
+        if (chunks.length === 0) {
+          log('No audio to convert', 'warn');
+          statusEl.textContent = 'No audio to convert';
+          return;
+        }
+        
+        try {
+          statusEl.textContent = 'Converting to base64...';
+          const blob = new Blob(chunks, { type: mimeType });
+          log(`Converting blob: ${blob.size} bytes`, 'info');
+          
+          // Use FileReader for more efficient base64 conversion
+          const reader = new FileReader();
+          
+          reader.onload = () => {
+            try {
+              // Remove the data URL prefix (e.g., "data:audio/webm;base64,")
+              const dataUrl = reader.result;
+              base64Data = dataUrl.split(',')[1];
+              
+              log(`Base64 conversion successful: ${base64Data.length} characters`, 'info');
+              statusEl.textContent = 'Converted to base64 successfully';
+              
+              // Enable send button after conversion
+              updateUI();
+            } catch (error) {
+              log(`Failed to process base64 result: ${error.message}`, 'error');
+              statusEl.textContent = 'Failed to process base64 result';
+            }
+          };
+          
+          reader.onerror = () => {
+            log(`FileReader error: ${reader.error}`, 'error');
+            statusEl.textContent = 'FileReader error during conversion';
+          };
+          
+          reader.readAsDataURL(blob);
+        } catch (error) {
+          log(`Failed to convert to base64: ${error.message}`, 'error');
+          statusEl.textContent = 'Failed to convert to base64';
+        }
+      }
+      
+      function sendToGemini() {
+        log('Sending audio to Gemini...', 'info');
+        
+        if (!base64Data) {
+          log('No base64 data available', 'warn');
+          statusEl.textContent = 'Please convert to base64 first';
+          return;
+        }
+        
+        // Check if recorderAPI is available
+        if (!window.recorderAPI) {
+          log('recorderAPI is not available', 'error');
+          statusEl.textContent = 'recorderAPI not available';
+          return;
+        }
+        
+        if (!window.recorderAPI.sendAudio) {
+          log('sendAudio method is not available', 'error');
+          statusEl.textContent = 'sendAudio method not available';
+          return;
+        }
+        
+        try {
+          statusEl.textContent = 'Sending to Gemini...';
+          log(`Sending audio: ${base64Data.length} chars, mimeType: ${mimeType}`, 'info');
+          window.recorderAPI.sendAudio(base64Data, mimeType);
+          log('Audio sent to Gemini for transcription', 'info');
+          
+          // Set a timeout to handle cases where IPC response doesn't arrive
+          setTimeout(() => {
+            if (statusEl.textContent === 'Sending to Gemini...') {
+              log('No response from Gemini after 10 seconds, checking status...', 'warn');
+              statusEl.textContent = 'No response from Gemini - check logs';
+            }
+          }, 10000);
+        } catch (error) {
+          log(`Failed to send to Gemini: ${error.message}`, 'error');
+          statusEl.textContent = 'Failed to send to Gemini';
+        }
+      }
+      
+      function copyToClipboard() {
+        log('Copying to clipboard...', 'info');
+        
+        if (!transcribedText) {
+          log('No transcribed text available', 'warn');
+          statusEl.textContent = 'No text to copy';
+          return;
+        }
+        
+        try {
+          navigator.clipboard.writeText(transcribedText).then(() => {
+            log(`Copied to clipboard: "${transcribedText}"`, 'info');
+            statusEl.textContent = 'Copied to clipboard!';
+          }).catch(error => {
+            log(`Failed to copy to clipboard: ${error.message}`, 'error');
+            statusEl.textContent = 'Failed to copy to clipboard';
+          });
+        } catch (error) {
+          log(`Failed to copy to clipboard: ${error.message}`, 'error');
+          statusEl.textContent = 'Failed to copy to clipboard';
+        }
+      }
+      
+      function checkStatus() {
+        log('Checking current status...', 'info');
+        log(`Current status: ${statusEl.textContent}`, 'info');
+        log(`Transcribed text: ${transcribedText || 'None'}`, 'info');
+        log(`Base64 data: ${base64Data ? base64Data.length + ' chars' : 'None'}`, 'info');
+        log(`Chunks: ${chunks.length}`, 'info');
+        log(`Is recording: ${isRecording}`, 'info');
+        
+        if (statusEl.textContent === 'Sending to Gemini...') {
+          log('Still waiting for Gemini response...', 'warn');
+          statusEl.textContent = 'Still waiting for Gemini response...';
+        }
+      }
+      
+      function simulateTranscription() {
+        log('Simulating transcription completion...', 'info');
+        // Use the actual transcription result from the logs
+        transcribedText = 'base system';
+        log(`Simulated transcription: "${transcribedText}"`, 'info');
+        statusEl.textContent = 'Simulated transcription completed!';
+        updateUI();
+      }
+      
+      function updateUI() {
+        log(`updateUI called - isRecording: ${isRecording}, chunks length: ${chunks.length}`, 'info');
+        
+        if (isRecording) {
+          body.classList.add('recording');
+          recordingIndicator.style.display = 'inline-block';
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+          playBtn.disabled = true;
+        } else {
+          body.classList.remove('recording');
+          recordingIndicator.style.display = 'none';
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+          playBtn.disabled = chunks.length === 0;
+          convertBtn.disabled = chunks.length === 0;
+          sendBtn.disabled = !base64Data;
+          copyBtn.disabled = !transcribedText;
+        }
+        
+        log(`Play button disabled: ${playBtn.disabled}`, 'info');
+      }
+      
+      function startAudioVisualization() {
+        const bars = audioBars.querySelectorAll('.audio-bar');
+        
+        function updateVisualization() {
+          if (!analyser || !isRecording) return;
+          
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          
+          bars.forEach((bar, index) => {
+            const value = dataArray[index] || average;
+            const height = Math.max(8, (value / 255) * 40);
+            bar.style.height = height + 'px';
+          });
+          
+          animationId = requestAnimationFrame(updateVisualization);
+        }
+        
+        updateVisualization();
+      }
+      
+      function stopAudioVisualization() {
+        if (animationId) {
+          cancelAnimationFrame(animationId);
+          animationId = null;
+        }
+        const bars = audioBars.querySelectorAll('.audio-bar');
+        bars.forEach(bar => {
+          bar.style.height = '8px';
+        });
+      }
+      
+      // Event listeners
+      startBtn.addEventListener('click', startRecording);
+      stopBtn.addEventListener('click', stopRecording);
+      playBtn.addEventListener('click', playRecording);
+      convertBtn.addEventListener('click', convertToBase64);
+      sendBtn.addEventListener('click', sendToGemini);
+      copyBtn.addEventListener('click', copyToClipboard);
+      statusBtn.addEventListener('click', checkStatus);
+      simulateBtn.addEventListener('click', simulateTranscription);
+      
+      // IPC handlers
+      log('Setting up IPC handlers...', 'info');
+      
+      window.recorderAPI.onStart(() => {
+        log('Received start command from main process', 'info');
+        startRecording();
+      });
+      
+      window.recorderAPI.onStop(() => {
+        log('Received stop command from main process', 'info');
+        stopRecording();
+      });
+      
+      window.recorderAPI.onProcessing(() => {
+        log('Processing state received from main process', 'info');
+        statusEl.textContent = 'Processing audio...';
+      });
+      
+      window.recorderAPI.onTranscribed((event, text) => {
+        log('Received transcription result from main process', 'info');
+        transcribedText = text;
+        log(`Transcription completed: "${text}"`, 'info');
+        statusEl.textContent = 'Transcription completed!';
+        // Enable copy button after transcription
+        updateUI();
+      });
+      
+      window.recorderAPI.onError((message) => {
+        log(`Error from main process: ${message}`, 'error');
+        statusEl.textContent = `Error: ${message}`;
+      });
+      
+      log('IPC handlers set up successfully', 'info');
+      
+      // Initialize UI
+      updateUI();
+      log('UI initialized', 'info');
+    </script>
+  </body>
+</html>

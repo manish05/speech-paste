@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notification</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body { 
+        font-family: -apple-system, system-ui, sans-serif; 
+        background: transparent;
+        color: white;
+        user-select: none;
+        -webkit-user-select: none;
+        height: 100vh;
+        overflow: hidden;
+        -webkit-app-region: drag;
+      }
+      
+      .notification {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.9);
+        border-radius: 12px;
+        padding: 16px;
+        max-width: 380px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        animation: slideIn 0.3s ease-out;
+        -webkit-app-region: drag;
+      }
+      
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(100%);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      
+      .title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #4ade80;
+      }
+      
+      .text {
+        font-size: 13px;
+        line-height: 1.4;
+        word-break: break-word;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 6;
+        -webkit-box-orient: vertical;
+        max-height: 120px;
+      }
+      
+      .ellipsis {
+        color: #9ca3af;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="notification" id="notification">
+      <div class="title" id="title">Text copied to clipboard!</div>
+      <div class="text" id="text"></div>
+    </div>
+    
+    <script>
+      const titleEl = document.getElementById('title');
+      const textEl = document.getElementById('text');
+      
+      // Listen for messages from main process
+      if (window.electronAPI) {
+        window.electronAPI.onNotificationShow((text) => {
+          displayNotification(text);
+        });
+      }
+      
+      function displayNotification(text) {
+        console.log('Received notification text:', text, 'type:', typeof text);
+        titleEl.textContent = 'Text copied to clipboard!';
+        
+        if (text && text.length > 200) {
+          // Truncate and add ellipsis
+          const truncated = text.substring(0, 200);
+          textEl.innerHTML = `${truncated}<span class="ellipsis">...</span>`;
+        } else {
+          textEl.textContent = text || '';
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "name": "speech-paste",
+  "productName": "Speech Paste",
+  "module": "index.ts",
+  "main": "electron/main.js",
+  "type": "module",
+  "private": true,
+  "icon": "assets/icons/icon-256.png",
+  "scripts": {
+    "dev": "bunx electron .",
+    "start": "bunx electron .",
+    "icons": "bun run scripts/generate-icons.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "electron": "^37.3.1",
+    "sharp": "^0.34.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "keytar": "^7.9.0"
+  }
+}

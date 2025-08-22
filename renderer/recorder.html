@@ -1,0 +1,317 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Speech Paste Recorder</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body { 
+        font-family: -apple-system, system-ui, sans-serif; 
+        background: transparent;
+        color: white;
+        user-select: none;
+        -webkit-user-select: none;
+        height: 100vh;
+        overflow: hidden;
+        -webkit-app-region: drag;
+      }
+      
+      .widget {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.9);
+        border-radius: 12px;
+        padding: 20px;
+        min-width: 200px;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.3s ease;
+        -webkit-app-region: drag;
+      }
+      
+      .status {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        min-height: 20px;
+      }
+      
+      .recording-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #ff0000;
+        border-radius: 50%;
+        margin-right: 4px;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+      
+      .stop-btn {
+        background: #ff0000;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        -webkit-app-region: no-drag;
+      }
+      
+      .stop-btn:hover {
+        background: #cc0000;
+        transform: translateY(-1px);
+      }
+      
+      .stop-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+
+    </style>
+  </head>
+  <body>
+    <div class="widget" id="widget">
+      <div class="status" id="status">Ready</div>
+      <button class="stop-btn" id="stopBtn" disabled>Stop Recording</button>
+    </div>
+    
+    <script type="module">
+      // UI elements
+      const statusEl = document.getElementById('status');
+      const stopBtn = document.getElementById('stopBtn');
+      
+      // Recording state
+      let mediaRecorder = null;
+      let stream = null;
+      let chunks = [];
+      let mimeType = null;
+      let isRecording = false;
+      
+      // Initialize
+      console.log('Minimal recorder widget initialized');
+      
+      // Check if recorderAPI is available
+      if (window.recorderAPI) {
+        console.log('recorderAPI is available');
+      } else {
+        console.error('recorderAPI is not available');
+      }
+      
+      async function startRecording() {
+        try {
+          console.log('Starting recording...');
+          statusEl.textContent = 'Recording... Please speak...';
+          
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          console.log('Microphone access granted');
+          
+          mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'
+            : 'audio/webm';
+          
+          mediaRecorder = new MediaRecorder(stream, { mimeType });
+          chunks = [];
+          
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+              chunks.push(e.data);
+              console.log(`Audio chunk received: ${e.data.size} bytes`);
+            }
+          };
+          
+          mediaRecorder.onstart = () => {
+            console.log('MediaRecorder started');
+            isRecording = true;
+            stopBtn.disabled = false;
+          };
+          
+          mediaRecorder.onstop = async () => {
+            console.log('MediaRecorder stopped');
+            
+            try {
+              if (chunks.length > 0) {
+                const blob = new Blob(chunks, { type: mimeType });
+                console.log(`Audio blob created: ${blob.size} bytes`);
+                
+                // Convert to base64 and send to Gemini
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const dataUrl = reader.result;
+                  const base64Data = dataUrl.split(',')[1];
+                  
+                  console.log('Sending to Gemini for transcription...');
+                  statusEl.textContent = 'Processing...';
+                  
+                  if (window.recorderAPI && window.recorderAPI.sendAudio) {
+                    window.recorderAPI.sendAudio(base64Data, mimeType);
+                  } else {
+                    console.error('recorderAPI.sendAudio not available');
+                    statusEl.textContent = 'Error: API not available';
+                  }
+                };
+                reader.readAsDataURL(blob);
+              } else {
+                console.log('No audio chunks available');
+                statusEl.textContent = 'No audio recorded';
+                setTimeout(() => {
+                  statusEl.textContent = 'Ready';
+                }, 2000);
+              }
+              
+              if (window.recorderAPI && window.recorderAPI.notifyStopped) {
+                window.recorderAPI.notifyStopped();
+              }
+            } catch (error) {
+              console.error(`Error processing audio: ${error.message}`);
+              statusEl.textContent = 'Error processing audio';
+              setTimeout(() => {
+                statusEl.textContent = 'Ready';
+              }, 2000);
+            }
+          };
+          
+          mediaRecorder.onerror = (event) => {
+            console.error(`MediaRecorder error: ${event.error}`);
+          };
+          
+          mediaRecorder.start();
+          
+        } catch (err) {
+          console.error(`Failed to start recording: ${err.message}`);
+          statusEl.textContent = 'Microphone access denied';
+          setTimeout(() => {
+            statusEl.textContent = 'Ready';
+          }, 2000);
+        }
+      }
+      
+      function stopRecording() {
+        console.log('Stopping recording...');
+        
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+        
+        if (stream) {
+          stream.getTracks().forEach(track => {
+            track.stop();
+            console.log(`Audio track stopped: ${track.kind}`);
+          });
+          stream = null;
+        }
+        
+        isRecording = false;
+        stopBtn.disabled = true;
+        
+        // Notify main process that recording was stopped from the UI
+        if (window.recorderAPI && window.recorderAPI.stopRecording) {
+          window.recorderAPI.stopRecording();
+        }
+      }
+      
+      function resetState() {
+        console.log('Resetting recorder state...');
+        
+        // Stop any ongoing recording
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+        
+        // Stop any active stream
+        if (stream) {
+          stream.getTracks().forEach(track => {
+            track.stop();
+            console.log(`Audio track stopped during reset: ${track.kind}`);
+          });
+          stream = null;
+        }
+        
+        // Reset all state variables
+        mediaRecorder = null;
+        chunks = [];
+        mimeType = null;
+        isRecording = false;
+        
+        // Reset UI
+        statusEl.textContent = 'Ready';
+        stopBtn.disabled = true;
+        
+        console.log('Recorder state reset complete');
+      }
+      
+
+      
+      // Event listeners
+      stopBtn.addEventListener('click', stopRecording);
+      
+      // IPC handlers
+      if (window.recorderAPI) {
+        window.recorderAPI.onStart(() => {
+          console.log('Received start command from main process');
+          startRecording();
+        });
+        
+        window.recorderAPI.onStop(() => {
+          console.log('Received stop command from main process');
+          stopRecording();
+        });
+        
+        window.recorderAPI.onReset(() => {
+          console.log('Received reset command from main process');
+          resetState();
+        });
+        
+        window.recorderAPI.onProcessing(() => {
+          console.log('Processing state received from main process');
+          statusEl.textContent = 'Processing...';
+        });
+        
+        window.recorderAPI.onTranscribed((event, text) => {
+          console.log('Received transcription result from main process');
+          console.log(`Transcription: "${text}"`);
+          
+          // Copy to clipboard
+          navigator.clipboard.writeText(text).then(() => {
+            console.log('Text copied to clipboard');
+            statusEl.textContent = 'Copied!';
+            // Notify main process to show notification and close windows
+            if (window.recorderAPI && window.recorderAPI.notifyTranscribed) {
+              window.recorderAPI.notifyTranscribed(text);
+            }
+          }).catch(error => {
+            console.error('Failed to copy to clipboard:', error);
+            statusEl.textContent = 'Copy failed';
+          });
+        });
+        
+        window.recorderAPI.onError((message) => {
+          console.error(`Error from main process: ${message}`);
+          statusEl.textContent = 'Error';
+        });
+      }
+      
+
+    </script>
+  </body>
+</html>
+
+
